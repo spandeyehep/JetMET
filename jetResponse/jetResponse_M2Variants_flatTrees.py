@@ -32,10 +32,10 @@ args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
 #make samples. Samples are statisticall compatible.
-maxN = -1
+maxN = 10
 jetHT_M2_5_500  = Sample.fromCMGOutput("JetHT_M2_5_500", baseDirectory = "/data/rschoefbeck/cmgTuples/JetHT_HCal/JetHT_schoef-crab_JetHT_Run2015D_M2_5_500/", treeFilename='tree.root', maxN=maxN)
 jetHT           = Sample.fromCMGOutput("JetHT", baseDirectory = "/data/rschoefbeck/cmgTuples/JetHT_HCal/JetHT_schoef-crab_JetHT_Run2015D/", treeFilename='tree.root', maxN=maxN)
-maxN = -1
+maxN = 10
 QCD_Pt_15to3000_M2_5_500 = Sample.fromCMGOutput("QCD_Pt_15to3000_M2_5_500", baseDirectory = "/data/rschoefbeck/cmgTuples/QCD_HCal/QCD_Pt_15to3000_M2_5_500", treeFilename='tree.root', maxN=maxN)
 QCD_Pt_15to3000 = Sample.fromCMGOutput("QCD_Pt_15to3000", baseDirectory = "/data/rschoefbeck/cmgTuples/QCD_HCal/QCD_Pt_15to3000", treeFilename='tree.root', maxN=maxN)
 
@@ -88,7 +88,7 @@ for jetResponse, sample1, sample2 in [\
         event_list1.Enter(p1)
         event_list2.Enter(p2)
 
-    # Setthose 
+    # Set those 
     r1.setEventList(event_list1)
     r2.setEventList(event_list2)
 
@@ -96,8 +96,8 @@ for jetResponse, sample1, sample2 in [\
     r2.start()
     while r1.run() and r2.run():
         n = min([r1.data.nJet, r2.data.nJet])
-        jets1 = [{'rawPt':r1.data.Jet_rawPt[i], 'eta':r1.data.Jet_eta[i], 'phi':r1.data.Jet_eta[i]} for i in xrange(n) if abs(r1.data.Jet_eta[i])<1.3]
-        jets2 = [{'rawPt':r2.data.Jet_rawPt[i], 'eta':r2.data.Jet_eta[i], 'phi':r2.data.Jet_eta[i]} for i in xrange(n) if abs(r2.data.Jet_eta[i])<1.3]
+        jets1 = [{'rawPt':r1.data.Jet_rawPt[i], 'eta':r1.data.Jet_eta[i], 'phi':r1.data.Jet_phi[i]} for i in xrange(n) if abs(r1.data.Jet_eta[i])<1.3]
+        jets2 = [{'rawPt':r2.data.Jet_rawPt[i], 'eta':r2.data.Jet_eta[i], 'phi':r2.data.Jet_phi[i]} for i in xrange(n) if abs(r2.data.Jet_eta[i])<1.3]
         for c in zip(jets1, jets2):
             if deltaR2(*c)<0.2**2:
                 jetResponse.Fill(c[1]['rawPt'],c[0]['rawPt']/c[1]['rawPt'])
