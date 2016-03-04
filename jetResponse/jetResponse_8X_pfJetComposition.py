@@ -260,7 +260,7 @@ for i, p in enumerate(positions):
 
     for c in zip(jets1, jets2):
         if deltaR2(*c)<0.2**2:
-
+            if not ( helpers.jetID(c[0]['j']) and helpers.jetID(c[1]['j']) ): continue
             if abs(c[0]['eta'])<1.3 and abs(c[1]['eta'])<1.3:
                 ratio_jetResponse.Fill(c[1]['pt'], c[0]['pt']/c[1]['pt'] )
 
@@ -292,6 +292,9 @@ for i, p in enumerate(positions):
                 pt_76X_muonEnergy.Fill(c[1]['pt'], c[0]['j'].muonEnergy())
                 pt_76X_HFHadronEnergy.Fill(c[1]['pt'], c[0]['j'].HFHadronEnergy())
                 pt_76X_HFEMEnergy.Fill(c[1]['pt'], c[0]['j'].HFEMEnergy())
+                if c[1]['pt']>2000:
+                    print c[1]['pt'], c[1]['j'].chargedHadronEnergy(), c[1]['j'].neutralHadronEnergy(), c[1]['j'].photonEnergy(), c[1]['j'].electronEnergy(), c[1]['j'].muonEnergy(), c[1]['j'].HFEMEnergy(), c[1]['j'].HFHadronEnergy() 
+
             if abs(c[0]['pt'])>30 and abs(c[1]['pt'])>30:
                 eta_8X_chargedHadronEnergy.Fill(c[1]['eta'], c[1]['j'].chargedHadronEnergy())
                 eta_8X_neutralHadronEnergy.Fill(c[1]['eta'], c[1]['j'].neutralHadronEnergy() - c[1]['j'].HFHadronEnergy())

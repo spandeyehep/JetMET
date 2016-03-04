@@ -107,6 +107,12 @@ def wrapper(job):
 
     nJob, positions = job
 
+    # Checking whether the jobs was already done
+    outputFilename = os.path.join(args.outputDir, "jetTrees", "tree_%s_%s_%i.root"%(sample_ideal.name, sample_real.name, nJob) )
+    if  os.path.exists(outputFilename):
+        logger.info( "Found file %s -> Skipping job.", outputFilename)
+        return
+
     # Filler for data struct of maker
     def jet_filler(struct, jet_ideal, jet_real):
         for var in jetComponentNames:
@@ -148,16 +154,17 @@ def wrapper(job):
             jetTreeMaker.run()
 
     # Write tree from memory to file
-    outputFilename = os.path.join(args.outputDir, "jetTrees", "tree_%s_%s_%i.root"%(sample_ideal.name, sample_real.name, nJob) )
     if not os.path.exists(os.path.dirname(outputFilename)):
         os.makedirs(os.path.dirname(outputFilename))
 
     outputFile = ROOT.TFile(outputFilename, "recreate")
     jetTreeMaker.tree.Write()
     outputFile.Close()
+    logger.info( "Written file %s.", outputFilename)
     # Clean up (delete TTree)
     jetTreeMaker.clear()
 
+    return
 
 # Threading
 nPos = 100000
