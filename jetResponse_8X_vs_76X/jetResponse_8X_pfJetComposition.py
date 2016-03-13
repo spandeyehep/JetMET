@@ -17,7 +17,7 @@ import RootTools.plot.plotting as plotting
 import RootTools.core.helpers as helpers
 
 #Helper
-from helpers import deltaR2
+import helpers
 
 # argParser
 import argparse
@@ -39,6 +39,10 @@ pt_thresholds = [10**(x/10.) for x in range(11,36)]
 ratio_jetResponse = ROOT.TProfile("response", "response", len(pt_thresholds)-1, array.array('d', pt_thresholds) )
 ratio_jetResponse.style = lineStyle(ROOT.kBlue)
 ratio_jetResponse.legendText = "JetHT 260627" 
+
+ratio_jetResponse_x_800pre6 = ROOT.TProfile("response", "response", len(pt_thresholds)-1, array.array('d', pt_thresholds) )
+ratio_jetResponse_x_800pre6.style = lineStyle(ROOT.kBlue)
+ratio_jetResponse_x_800pre6.legendText = "JetHT 260627" 
 
 ratio_chargedEmEnergy = ROOT.TProfile("chargedEmEnergy", "chargedEmEnergy", len(pt_thresholds)-1, array.array('d', pt_thresholds) )
 ratio_chargedEmEnergy.style = lineStyle(ROOT.kBlue)
@@ -207,7 +211,7 @@ eta_lowPt_76X_HFEMEnergy.style = fillStyle(ROOT.kGray, lineColor = None)
 
 
 import files 
-maxN = 15
+maxN = 10
 # 8X mAOD, assumes eos mount in home directory 
 #dirname = "~/eos/cms/store/relval/CMSSW_8_0_0_pre6/JetHT/MINIAOD/80X_dataRun2_v4_RelVal_jetHT2015HLHT-v1/10000/"
 JetHT_8X_260627 = FWLiteSample.fromFiles("JetHT_8X_260627", files = ["root://eoscms.cern.ch/"+s for s in files.JetHT_8X_260627], maxN = maxN)
@@ -259,10 +263,11 @@ for i, p in enumerate(positions):
     jets2 = [{'pt':j.pt(), 'eta':j.eta(), 'phi':j.phi(), 'j':j} for j in jets2_]
 
     for c in zip(jets1, jets2):
-        if deltaR2(*c)<0.2**2:
+        if helpers.deltaR2(*c)<0.2**2:
             if not ( helpers.jetID(c[0]['j']) and helpers.jetID(c[1]['j']) ): continue
             if abs(c[0]['eta'])<1.3 and abs(c[1]['eta'])<1.3:
                 ratio_jetResponse.Fill(c[1]['pt'], c[0]['pt']/c[1]['pt'] )
+                ratio_jetResponse_x_800pre6.Fill(c[0]['pt'], c[0]['pt']/c[1]['pt'] )
 
                 if c[1]['j'].chargedEmEnergy()>0:       
                     ratio_chargedEmEnergy.Fill(c[1]['pt'], c[0]['j'].chargedEmEnergy()/c[1]['j'].chargedEmEnergy() )
@@ -328,9 +333,10 @@ for i, p in enumerate(positions):
 
 ## Make plot
 prefix="maxN_"+str(maxN)+'_'
-ratio_jetResponse
 jetResponsePlot = Plot.fromHisto(name = prefix+"pT_ratio_800pre6_76X", histos = [[ratio_jetResponse]], texX = "raw Jet p_{T} 76X", texY = "response ratio 800pre6/76X" )
 plotting.draw(jetResponsePlot, plot_directory = "/afs/hephy.at/user/r/rschoefbeck/www/etc/", logX = True, logY = False, sorting = False, yRange = (0.965, 1.045) )
+jetResponsePlot_x_800pre6 = Plot.fromHisto(name = prefix+"pT_ratio_800pre6_76X_x_800pre6", histos = [[ratio_jetResponse_x_800pre6]], texX = "raw Jet p_{T} 800pre6", texY = "response ratio 800pre6/76X" )
+plotting.draw(jetResponsePlot_x_800pre6, plot_directory = "/afs/hephy.at/user/r/rschoefbeck/www/etc/", logX = True, logY = False, sorting = False, yRange = (0.965, 1.045) )
 
 energyFractionsPlot = Plot.fromHisto(name = prefix+"Efrac_ratio_800pre6_76X", histos = [[ratio_chargedHadronEnergy],[ratio_neutralEmEnergy],[ratio_neutralHadronEnergy] ], texX = "raw Jet p_{T} 76X", texY = "response ratio 800pre6/76X" )
 plotting.draw(energyFractionsPlot, plot_directory = "/afs/hephy.at/user/r/rschoefbeck/www/etc/", logX = True, logY = False, sorting = False, yRange = (0.965, 1.08) )
