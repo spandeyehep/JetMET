@@ -29,6 +29,8 @@ logger = get_logger(args.logLevel, logFile = None)
 ##data
 JetHT           = FWLiteSample.fromDAS("JetHT", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced-4fff70efe810c67b5c65aa7d4a7cd41d/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
 JetHT_M2_5_500  = FWLiteSample.fromDAS("JetHT_M2_5_500", "/JetHT/schoef-crab_JetHT_Run2015D_M2_5_500_lumiBased_reduced-8e13882dc7c4566a38618e8b59bae173/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+JetHT_M2_0_500  = FWLiteSample.fromDAS("JetHT_M2_0_500", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced_M2_0_500-1698d5c0a2c4014a47bae89464ec1363/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+JetHT_M2_5_100  = FWLiteSample.fromDAS("JetHT_M2_5_100", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced_M2_5_100-1844535d82563cf58dccb520d79351d2/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
 JetHT_M0        = FWLiteSample.fromDAS("JetHT_M0", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced_M0-9d4a632a722feffaafd5b729e0393ea4/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
 JetHT_M21p      = FWLiteSample.fromDAS("JetHT_M21p", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced_M21p-4396cd947410146fe025d6c0e01e6549/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
 JetHT_M23p      = FWLiteSample.fromDAS("JetHT_M23p", "/JetHT/schoef-crab_JetHT_Run2015D_lumiBased_reduced_M23p-dee0be6699db8222b92d05d38956587e/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
@@ -47,7 +49,13 @@ jetResponse_M2_0_100.texName = "760 M2(0,100)"
 jetResponse_M2_0_100.style = styles.lineStyle(ROOT.kBlack)
 jetResponse_M2_5_500 = ROOT.TProfile("response_M2_5_500", "response_M2_5_500", len(thresholds)-1, array.array('d', thresholds) )
 jetResponse_M2_5_500.texName = "M2(5,500)"
-jetResponse_M2_5_500.style = styles.lineStyle(ROOT.kRed)
+jetResponse_M2_5_500.style = styles.lineStyle(ROOT.kOrange)
+jetResponse_M2_0_500 = ROOT.TProfile("response_M2_0_500", "response_M2_0_500", len(thresholds)-1, array.array('d', thresholds) )
+jetResponse_M2_0_500.texName = "M2(0,500)"
+jetResponse_M2_0_500.style = styles.lineStyle(ROOT.kRed - 7)
+jetResponse_M2_5_100 = ROOT.TProfile("response_M2_5_100", "response_M2_5_100", len(thresholds)-1, array.array('d', thresholds) )
+jetResponse_M2_5_100.texName = "M2(5,100)"
+jetResponse_M2_5_100.style = styles.lineStyle(ROOT.kRed)
 jetResponse_M0 = ROOT.TProfile("response_M0", "response_M0", len(thresholds)-1, array.array('d', thresholds) )
 jetResponse_M0.texName = "M0"
 jetResponse_M0.style = styles.lineStyle(ROOT.kBlue)
@@ -69,6 +77,8 @@ maxN = 100000
 for response, sample1, sample2 in [\
     [jetResponse_M2_0_100, JetHT, JetHT],
     [jetResponse_M2_5_500, JetHT_M2_5_500, JetHT],
+    [jetResponse_M2_0_500, JetHT_M2_0_500, JetHT],
+    [jetResponse_M2_5_100, JetHT_M2_5_100, JetHT],
     [jetResponse_M0, JetHT_M0, JetHT],
     [jetResponse_M21p, JetHT_M21p, JetHT],
     [jetResponse_M23p, JetHT_M23p, JetHT],
@@ -128,7 +138,7 @@ for response, sample1, sample2 in [\
 
 
 # Make plot
-profiles = [jetResponse_M2_0_100, jetResponse_M2_5_500, jetResponse_M0, jetResponse_M21p, jetResponse_M23p]
+profiles = [jetResponse_M2_0_100, jetResponse_M2_5_500, jetResponse_M2_0_500, jetResponse_M2_5_100, jetResponse_M0, jetResponse_M21p, jetResponse_M23p]
 prefix="maxN_%s_"%maxN if maxN is not None and maxN>0 else ""
 histos = [ [h.ProjectionX()] for h in profiles ]
 for i, h in enumerate(histos):
