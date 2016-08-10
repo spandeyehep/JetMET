@@ -29,38 +29,46 @@ logger = get_logger(args.logLevel, logFile = None)
 ##QCD
 
 QCD           = FWLiteSample.fromDAS("QCD"          , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M2_5_500  = FWLiteSample.fromDAS("QCD_M2_5_500" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_5_500-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M2_0_500  = FWLiteSample.fromDAS("QCD_M2_0_500" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_0_500-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M2_5_100  = FWLiteSample.fromDAS("QCD_M2_5_100" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_5_100-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M0        = FWLiteSample.fromDAS("QCD_M0"       , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M0-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M21p      = FWLiteSample.fromDAS("QCD_M21p"     , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M21p-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
-QCD_M23p      = FWLiteSample.fromDAS("QCD_M23p"     , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M23p-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M2_5_500  = FWLiteSample.fromDAS("QCD_M2_5_500" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_5_500-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M2_0_500  = FWLiteSample.fromDAS("QCD_M2_0_500" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_0_500-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M2_5_100  = FWLiteSample.fromDAS("QCD_M2_5_100" , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M2_5_100-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M0        = FWLiteSample.fromDAS("QCD_M0"       , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M0-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M21p      = FWLiteSample.fromDAS("QCD_M21p"     , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M21p-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+#QCD_M23p      = FWLiteSample.fromDAS("QCD_M23p"     , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_M23p-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+QCD_NJC       = FWLiteSample.fromDAS("QCD_NJC"      , "/QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8/schoef-crab_QCD_Pt-15to3000_TuneCUETP8M1_Flat_13TeV_pythia8_noJetCoreTracking-5dafd396af9e4f54f380247389303774/USER", instance="phys03", prefix = "root://hephyse.oeaw.ac.at/")
+
+preprefix = "NJC_"
 
 useGenPt = True
 
 # define TProfiles
 thresholds = [10**(x/10.) for x in range(11,36)] 
-jetResponse_M2_0_100 = ROOT.TProfile("response", "response", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M2_0_100.texName = "760 M2(0,100)"
-jetResponse_M2_0_100.style = styles.lineStyle(ROOT.kBlack)
-jetResponse_M2_5_500 = ROOT.TProfile("response_M2_5_500", "response_M2_5_500", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M2_5_500.texName = "M2(5,500)"
-jetResponse_M2_5_500.style = styles.lineStyle(ROOT.kOrange)
-jetResponse_M2_0_500 = ROOT.TProfile("response_M2_0_500", "response_M2_0_500", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M2_0_500.texName = "M2(0,500)"
-jetResponse_M2_0_500.style = styles.lineStyle(ROOT.kRed - 7)
-jetResponse_M2_5_100 = ROOT.TProfile("response_M2_5_100", "response_M2_5_100", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M2_5_100.texName = "M2(5,100)"
-jetResponse_M2_5_100.style = styles.lineStyle(ROOT.kRed)
-jetResponse_M0 = ROOT.TProfile("response_M0", "response_M0", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M0.texName = "M0"
-jetResponse_M0.style = styles.lineStyle(ROOT.kBlue)
-jetResponse_M21p = ROOT.TProfile("response_M21p", "response_M21p", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M21p.texName = "1-pulse"
-jetResponse_M21p.style = styles.lineStyle(ROOT.kGreen) 
-jetResponse_M23p = ROOT.TProfile("response_M23p", "response_M23p", len(thresholds)-1, array.array('d', thresholds) )
-jetResponse_M23p.texName = "3-pulse"
-jetResponse_M23p.style = styles.lineStyle(ROOT.kMagenta)
+
+#jetResponse_M2_0_100 = ROOT.TProfile("response", "response", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M2_0_100.texName = "760 M2(0,100)"
+#jetResponse_M2_0_100.style = styles.lineStyle(ROOT.kBlack)
+#jetResponse_M2_5_500 = ROOT.TProfile("response_M2_5_500", "response_M2_5_500", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M2_5_500.texName = "M2(5,500)"
+#jetResponse_M2_5_500.style = styles.lineStyle(ROOT.kOrange)
+#jetResponse_M2_0_500 = ROOT.TProfile("response_M2_0_500", "response_M2_0_500", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M2_0_500.texName = "M2(0,500)"
+#jetResponse_M2_0_500.style = styles.lineStyle(ROOT.kRed - 7)
+#jetResponse_M2_5_100 = ROOT.TProfile("response_M2_5_100", "response_M2_5_100", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M2_5_100.texName = "M2(5,100)"
+#jetResponse_M2_5_100.style = styles.lineStyle(ROOT.kRed)
+#jetResponse_M0 = ROOT.TProfile("response_M0", "response_M0", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M0.texName = "M0"
+#jetResponse_M0.style = styles.lineStyle(ROOT.kBlue)
+#jetResponse_M21p = ROOT.TProfile("response_M21p", "response_M21p", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M21p.texName = "1-pulse"
+#jetResponse_M21p.style = styles.lineStyle(ROOT.kGreen) 
+#jetResponse_M23p = ROOT.TProfile("response_M23p", "response_M23p", len(thresholds)-1, array.array('d', thresholds) )
+#jetResponse_M23p.texName = "3-pulse"
+#jetResponse_M23p.style = styles.lineStyle(ROOT.kMagenta)
+
+jetResponse_NJC = ROOT.TProfile("response_NJC", "response_NJC", len(thresholds)-1, array.array('d', thresholds) )
+jetResponse_NJC.texName = "no Jet core tracking"
+jetResponse_NJC.style = styles.lineStyle(ROOT.kOrange)
 
 products = {
     'jets':      {'type':'vector<pat::Jet>', 'label':("slimmedJets")},
@@ -71,13 +79,14 @@ products = {
 maxN = 100000
 
 for response, sample1, sample2 in [\
-    [jetResponse_M2_0_100, QCD, QCD],
-    [jetResponse_M2_5_500, QCD_M2_5_500, QCD],
-    [jetResponse_M2_0_500, QCD_M2_0_500, QCD],
-    [jetResponse_M2_5_100, QCD_M2_5_100, QCD],
-    [jetResponse_M0, QCD_M0, QCD],
-    [jetResponse_M21p, QCD_M21p, QCD],
-    [jetResponse_M23p, QCD_M23p, QCD],
+#    [jetResponse_M2_0_100, QCD, QCD],
+#    [jetResponse_M2_5_500, QCD_M2_5_500, QCD],
+#    [jetResponse_M2_0_500, QCD_M2_0_500, QCD],
+#    [jetResponse_M2_5_100, QCD_M2_5_100, QCD],
+#    [jetResponse_M0, QCD_M0, QCD],
+#    [jetResponse_M21p, QCD_M21p, QCD],
+#    [jetResponse_M23p, QCD_M23p, QCD],
+    [jetResponse_NJC, QCD_NJC, QCD],
     ]:
     r1 = sample1.fwliteReader( products = products )
     r2 = sample2.fwliteReader( products = products )
@@ -139,8 +148,9 @@ for response, sample1, sample2 in [\
 
 
 # Make plot
-profiles = [jetResponse_M2_0_100, jetResponse_M2_5_500, jetResponse_M2_0_500, jetResponse_M2_5_100, jetResponse_M0, jetResponse_M21p, jetResponse_M23p]
-prefix="maxN_%s_"%maxN if maxN is not None and maxN>0 else ""
+#profiles = [jetResponse_M2_0_100, jetResponse_M2_5_500, jetResponse_M2_0_500, jetResponse_M2_5_100, jetResponse_M0, jetResponse_M21p, jetResponse_M23p]
+profiles = [ jetResponse_NJC]
+prefix=preprefix+"maxN_%s_"%maxN if maxN is not None and maxN>0 else ""
 histos = [ [h.ProjectionX()] for h in profiles ]
 for i, h in enumerate(histos):
     h[0].__dict__.update(profiles[i].__dict__)
