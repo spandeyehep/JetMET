@@ -1,6 +1,5 @@
 ''' Make simple jet trees for rereco jet response comparison 
 '''
-
 # Standard imports
 import sys
 import os
@@ -38,6 +37,11 @@ argParser.add_argument('--output_path',
       help="era"
 )
 
+argParser.add_argument('--overwrite', 
+      action='store_true',
+      default=False,
+)
+
 argParser.add_argument('--run', 
       action='store',
       type = int,
@@ -48,6 +52,7 @@ argParser.add_argument('--run',
 
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
+
 if args.era == 'Run2016B':
     s_prompt = 'JetHT_Run2016B_PromptReco_v2'
     s_rereco = 'JetHT_Run2016B_23Sep2016_v3'
@@ -95,11 +100,24 @@ if args.run<0:
         run = int(str_run)
         if run in prompt_runs and run in rereco_runs:
             runs.append(run)
-    
-    for run in runs:
-        print "python jetTreeMaker.py --run=%i --era=%s"%(run, args.era)
+
+    print "Now running %i jobs: %r"%( len(runs), runs )
+
+    import subprocess
+    def wrapper( run_ ):
+        subprocess.call(["python", "jetTreeMaker.py", ("--era=%s"%args.era), ("--run=%i"%run_) ])
+
+    from multiprocessing import Pool
+    pool = Pool( 10 )
+    results = pool.map(wrapper, runs)
+    pool.close()
+
     sys.exit(0)
 
+outputFilename = os.path.join( args.output_path, 'jet_%s_%i.root'%(args.era, args.run) )
+if os.path.exists(outputFilename) and not args.overwrite:
+    print "Found file %s. Skipping." % outputFilename
+    sys.exit(0)
 
 jet_str = "pt/F,eta/F,rawPt/F,phi/F,btagCSV/F,chHEF/F,neHEF/F,phEF/F,eEF/F,muEF/F,HFHEF/F,HFEMEF/F,chHMult/I,neHMult/I,phMult/I,eMult/I,muMult/I,HFHMult/I,HFEMMult/I,id/I"
 read_variables = ["evt/l", "run/I", "lumi/I", "nJet/I", "nVert/I", "Jet[%s]"%jet_str]
@@ -111,7 +129,7 @@ from math import pi
 
 maxN = -1 #20000
 
-from helpers import getVarValue, getObjDict
+from helpers import getVarValue, getObjDict, deltaR2
 jetVars = ['pt', 'eta', 'btagCSV', 'rawPt', 'phi', 'chHEF', 'neHEF', 'phEF', 'eEF', 'muEF', 'HFHEF', 'HFEMEF', 'chHMult', 'neHMult', 'phMult', 'eMult', 'muMult', 'HFHMult', 'HFEMMult', 'id']
 
 def getJets(c, jetVars=jetVars, jetColl="Jet"):
@@ -142,6 +160,7 @@ positions = [(position_r_prompt[i], position_r_rereco[i]) for i in intersec]
 if len(positions)==0:
     print "Found no common events in era %s and run %i. Quit." %( args.era, args.run )
     sys.exit(0)
+
 
 # Without sorting, there is a jump between files with almost every event -> extremly slow
 positions.sort()
@@ -180,7 +199,6 @@ for i, p in enumerate(positions):
 if not os.path.exists( args.output_path ):
     os.makedirs( args.output_path )
 
-outputFilename = os.path.join( args.output_path, 'jet_%s_%i.root'%(args.era, args.run) )
 outputFile = ROOT.TFile(outputFilename, "recreate")
 jetTreeMaker.tree.Write()
 outputFile.Close()

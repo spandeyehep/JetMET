@@ -1,3 +1,6 @@
+import os
+from math import pi, cos, sin, sqrt
+
 def deltaPhi(phi1, phi2):
     dphi = phi2-phi1
     if  dphi > pi:
@@ -23,9 +26,24 @@ def getObjDict(c, prefix, variables, i):
     res={var: getVarValue(c, prefix+var, i) for var in variables}
     res['index']=i
     return res
+
+def getSubDir(dataset, path):
+    import re
+    m=re.match("\/(.*)\/(.*)\/(.*)",dataset)
+    if not m :
+        print "NO GOOD DATASET"
+        return
+    if os.environ['USER'] in ['tomc']: 
+      d=re.match("(.*)/cmgTuples/(.*)",path)
+      return m.group(1)+"/"+m.group(2)+'_'+d.group(2)
+    else :                             
+      return m.group(1)+"_"+m.group(2)
+
 def fromHeppySample(sample, data_path, module = None, maxN = None):
     ''' Load CMG tuple from local directory
     '''
+
+    from RootTools.core.Sample import Sample
 
     import importlib
     if module is not None:
@@ -48,19 +66,11 @@ def fromHeppySample(sample, data_path, module = None, maxN = None):
         raise ValueError( "Not a good dataset name: '%s'"%heppy_sample.dataset )
 
     path = os.path.join( data_path, subDir )
-    from StopsDilepton.tools.user import runOnGentT2
-    if runOnGentT2: 
-        sample = Sample.fromCMGCrabDirectory(
-            heppy_sample.name, 
-            path, 
-            treeFilename = 'tree.root', 
-            treeName = 'tree', isData = heppy_sample.isData, maxN = maxN)
-    else:                              
-        sample = Sample.fromCMGOutput(
-            heppy_sample.name, 
-            path, 
-            treeFilename = 'tree.root', 
-            treeName = 'tree', isData = heppy_sample.isData, maxN = maxN)
+    sample = Sample.fromCMGOutput(
+        heppy_sample.name, 
+        path, 
+        treeFilename = 'tree.root', 
+        treeName = 'tree', isData = heppy_sample.isData, maxN = maxN)
 
     sample.heppy = heppy_sample
     return sample
