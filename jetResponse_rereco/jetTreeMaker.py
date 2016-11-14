@@ -56,7 +56,7 @@ logger = get_logger(args.logLevel, logFile = None)
 if args.era == 'Run2016B':
     s_prompt = 'JetHT_Run2016B_PromptReco_v2'
     s_rereco = 'JetHT_Run2016B_23Sep2016_v3'
-elif args.era == 'Run2016B':
+elif args.era == 'Run2016C':
     s_prompt = 'JetHT_Run2016C_PromptReco_v2'
     s_rereco = 'JetHT_Run2016C_23Sep2016_v1'
 elif args.era == 'Run2016D':
