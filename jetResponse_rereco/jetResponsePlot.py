@@ -97,7 +97,7 @@ histos[1][0].legendText = "barrel |#eta| < 1.3 "
 histos[2][0].style = styles.errorStyle( ROOT.kBlue, markerSize = 0.5)
 histos[2][0].legendText = "endcap 1.3 < |#eta| < 3"
 histos[3][0].style = styles.errorStyle( ROOT.kGreen, markerSize = 0.5)
-histos[3][0].legendText = "forward #eta > 3"
+histos[3][0].legendText = "forward |#eta| > 3"
 
 name = '_'.join([prefix, args.era, 'pt' ]) 
 jetResponsePlot = Plot.fromHisto(name = name, histos = histos, texX = "prompt p_{T}", texY = "response rereco/prompt" )
@@ -108,7 +108,7 @@ eta_thresholds = [ i/10. for i in range(52) ]
 profile_eta_pt_inc   = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt>20", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
 profile_eta_pt_50    = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt<50&&rawPt_prompt>20", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
 profile_eta_pt_100   = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt<100&&rawPt_prompt>50", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
-profile_eta_pt_300   = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt<300&&rawpt_prompt>100", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
+profile_eta_pt_300   = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt<300&&rawPt_prompt>100", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
 profile_eta_pt_gr300 = jets.get1DHistoFromDraw("rawPt_rereco/rawPt_prompt:abs(eta_prompt)", selectionString = "id_prompt>=1&&abs(muEF_rereco-muEF_prompt)<0.1&&rawPt_prompt>300", binning = eta_thresholds, binningIsExplicit = True, isProfile=True)
 
 profiles = [ profile_eta_pt_inc, profile_eta_pt_50, profile_eta_pt_100, profile_eta_pt_300, profile_eta_pt_gr300]
