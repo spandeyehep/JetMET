@@ -52,12 +52,33 @@ argParser.add_argument('--small',
       help="small?"
 )
 
+
+argParser.add_argument('--clean', 
+      action='store_true',
+      # default=True,
+      help="clean?"
+)
+
+argParser.add_argument('--system', 
+      action='store',
+      #nargs=1,
+      type=str,
+      default='all', 
+     choices = ['all','barrel', 'endcap'],
+      help="era"
+)
+
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-prefix = "clean"
+ppfixes = []
 if args.small:
-    prefix+='_small'
+    ppfixes.append('small')
+if args.clean:
+    ppfixes.append('clean')
+
+prefix = '_'.join(ppfixes)
+
 all_files = [f for f in os.listdir(args.input_path) if os.path.isfile(os.path.join(args.input_path, f))]
 
 files = filter( lambda f: args.era.replace('_early','').replace('_late','') in f, all_files )
@@ -89,9 +110,19 @@ pt_min = 20
 n_bin = 200
 pt_thresholds = [exp(x) for x in np.arange(log(pt_min),log(pt_max), (log(pt_max)-log(pt_min))/n_bin) ]
 
-pt_2D = jets.get2DHistoFromDraw("rawPt_rereco:rawPt_prompt", selectionString = "id_prompt>=1&&abs(muEF_prompt-muEF_rereco)<0.1", binning = ( pt_thresholds, pt_thresholds ), binningIsExplicit = True)
+cut = "id_prompt>=1"
+if args.clean:
+    cut += "&&abs(muEF_prompt-muEF_rereco)<0.1"
+if args.system!='all':
+    if args.system=='endcap':
+        cut+="&&abs(eta_prompt)>1.1"
+    elif args.system == 'barrel':
+        cut+="&&abs(eta_prompt)<=1.1"
+    
 
-name = '_'.join([prefix, args.era, 'pt_2D' ]) 
+pt_2D = jets.get2DHistoFromDraw("rawPt_rereco:rawPt_prompt", selectionString = cut, binning = ( pt_thresholds, pt_thresholds ), binningIsExplicit = True)
+
+name = '_'.join([prefix, args.era, args.system, 'pt_2D' ]) 
 #p_pt_2D = Plot2D.fromHisto(name = name, histos = [[pt_2D]], texX = "prompt p_{T}", texY = "rereco p_{T}" )
 c1 = ROOT.TCanvas()
 pt_2D.SetTitle("")
