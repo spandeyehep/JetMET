@@ -45,8 +45,7 @@ def vecSumPt(particles):
 def bold(s):
     return '\033[1m'+s+'\033[0m'
 
-## 8X mAOD, assumes eos mount in home directory 
-## from Directory
+### 8X mAOD, assumes eos mount in home directory 
 dirname = "/data/rschoefbeck/pickEvents/StopsDilepton/" 
 prompt = FWLiteSample.fromFiles("prompt", files = [ \
     "root://eoscms.cern.ch//store/user/zdemirag/DoubleMuon/crab_pickEventsPrompt/161219_193844/0000/pickevents_prompt_%i.root"%i for i in range(1,6) 
@@ -55,6 +54,9 @@ prompt = FWLiteSample.fromFiles("prompt", files = [ \
 rereco = FWLiteSample.fromFiles("rereco", files = [ \
     "root://hephyse.oeaw.ac.at//dpm/oeaw.ac.at/home/cms/store/user/schoef/DoubleMuon/crab_pickEvents/161219_192421/0000/pickevents_%i.root"%i for i in range(1,24) + range(25, 116) 
     ])
+
+#evt = 2259466578 # the first duplicated, Robert, Dec. 19th 
+evt = 1821418817 # Zeynep Dec. 20th
 
 products = {
     'pfCands':{'type':'vector<pat::PackedCandidate>', 'label':"packedPFCandidates"},
@@ -96,7 +98,7 @@ for i, p in enumerate(positions):
     p1,p2 = p
     r1.goToPosition(p1)
     r2.goToPosition(p2)
-    if 2259466578 in r1.evt: 
+    if evt in r1.evt: 
         logger.info( "Found evt %i:%i:%i. MET: prompt %3.2f rereco: %3.2f"% (r1.evt[0], r1.evt[1], r1.evt[2], r1.products['pfMet'][0].pt(), r2.products['pfMet'][0].pt() ) )
         break
         
