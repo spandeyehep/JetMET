@@ -26,14 +26,17 @@ argParser.add_argument('--logLevel',
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-##QCD
+max_events = 500000
+max_files = 30
 
 #new       = FWLiteSample.fromDAS("new"      , "/RelValTTbar_13/CMSSW_8_0_21-PU25ns_80X_mcRun2_asymptotic_2016_TrancheIV_v6_Tr4GT_v6-v1/MINIAODSIM")
 #old       = FWLiteSample.fromDAS("old"      , "/RelValTTbar_13/CMSSW_8_0_20-PU25ns_80X_mcRun2_asymptotic_2016_TrancheIV_v2_Tr4GT_v2-v1/MINIAODSIM")
-new       = FWLiteSample.fromDAS("new"      , "/QCD_Pt-15to7000_TuneCUETP8M1_FlatP6_13TeV_pythia8/RunIISummer16MiniAODv2-NoPU_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM", maxN = 10)
-old       = FWLiteSample.fromDAS("old"      , "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-NoPU_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v2/MINIAODSIM", maxN = 10)
+new       = FWLiteSample.fromDAS("new"      , "/QCD_Pt-15to7000_TuneCUETP8M1_FlatP6_13TeV_pythia8/RunIISummer16MiniAODv2-NoPU_80X_mcRun2_asymptotic_2016_TrancheIV_v6-v1/MINIAODSIM", maxN = max_files)
+old       = FWLiteSample.fromDAS("old"      , "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-NoPU_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v2/MINIAODSIM", maxN = max_files)
 
-preprefix = "relval_ttbar_"
+pt_hat_min = 300
+pt_hat_max = 350
+preprefix = "relval_ttbar_pt_hat_%i_%i" % ( pt_hat_min, pt_hat_max)
 
 useGenPt = True
 
@@ -55,19 +58,20 @@ for s in [old.name, new.name]:
 
 products = {
     'jets':      {'type':'vector<pat::Jet>', 'label':("slimmedJets")},
+    'genInfo':   {'type':' GenEventInfoProduct', 'label': "generator"},
+
 #    'pfClusters':{'type':"vector<reco::PFCluster>", 'label':("particleFlowClusterHBHE")}, 
 #    'pfRecHits': {'type':"vector<reco::PFRecHit>", 'label':("particleFlowRecHitHBHE")},
     }
-
-max_events = 1000000
 
 for sample in [new, old]:
     r1 = sample.fwliteReader( products = products )
     r1.start()
     i=0
     while r1.run():
-        
+        pt_hat = r1.products['genInfo'].binningValues()[0]
         if i%10000==0: logger.info("At %i", i)
+        if not (pt_hat > pt_hat_min and pt_hat <pt_hat_max): continue
             
         id_jets = [ j.correctedJet("Uncorrected") for j in r1.products['jets'] if helpers.jetID( j )]
         for j in id_jets:
@@ -87,7 +91,7 @@ for sample in [new, old]:
 # Make plot
 profiles = [resp["old"][t] for t in eta_thresholds] + [resp["new"][t] for t in eta_thresholds]
 #profiles = [ jetResponse_NJC]
-prefix=preprefix+"max_events_%s_"%max_events if max_events is not None and max_events>0 else ""
+prefix=preprefix+"_max_events_%s_"%max_events if max_events is not None and max_events>0 else ""
 histos = [ [h.ProjectionX()] for h in profiles ]
 for i, h in enumerate(histos):
     h[0].__dict__.update(profiles[i].__dict__)
