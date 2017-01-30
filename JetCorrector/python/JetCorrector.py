@@ -16,7 +16,7 @@ Summer16_23Sep2016_DATA = \
  (280919, 'Summer16_23Sep2016HV3_DATA'))
 
 # config
-Summer16_23Sep2016_MC = ((1, 'Summer16_23Sep2016BCDV3_MC'))
+Summer16_23Sep2016_MC = ((1, 'Summer16_23Sep2016BCDV3_MC'),)
 
 def wget( source, target ):
     ''' Download source to target and make directories
@@ -48,12 +48,11 @@ class JetCorrector:
             else:
                 logger.info( "Found %s. Do nothing.", source )
 
-
-   
 if __name__ == "__main__":
 
     # Logging
     import JetMET.tools.logger as logger
     logger  = logger.get_logger('INFO', logFile = None)
 
-    jetCorrector = JetCorrector( Summer16_23Sep2016_DATA ) 
+    jetCorrector_data = JetCorrector( Summer16_23Sep2016_DATA ) 
+    jetCorrector_mc   = JetCorrector( Summer16_23Sep2016_MC ) 
