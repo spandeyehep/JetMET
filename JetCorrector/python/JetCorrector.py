@@ -23,8 +23,6 @@ Summer16_23Sep2016_DATA = \
 correction_levels_mc = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 Summer16_23Sep2016_MC = ((1, 'Summer16_23Sep2016V3_MC'),)
 
-#Summer16_23Sep2016GV3_DATA_L2L3Residual_AK8PFchs.txt
-
 def wget( source, target ):
     ''' Download source to target and make directories
     '''
@@ -40,11 +38,12 @@ class JetCorrector:
             correctionLevels, 
             baseurl     = "https://github.com/cms-jet/JECDatabase/raw/master/tarballs/",
             jetFlavour  = 'AK4PFchs',
-            extension   = "tar.gz",
             directory   = "$CMSSW_BASE/src/JetMET/JetCorrector/data/",
             overwrite   = False,
             ):
 
+        extension   = "tar.gz"
+        self.jetCorrectors = []
         for runnumber, filename in iovs:
             # Download file
             source = os.path.join( baseurl, "%s.%s"%(filename, extension) )
@@ -62,13 +61,26 @@ class JetCorrector:
             else:
                 logger.info( "Found %s.", target )
 
-        # Make corrector
-        self.vPar = ROOT.vector(ROOT.JetCorrectorParameters)()
-        for level in correctionLevels:
-            txtfile = os.path.join( os.path.expandvars(directory), "%s_%s_%s.txt"%( filename, level, jetFlavour)  )
-            self.vPar.push_back( ROOT.JetCorrectorParameters( txtfile, "" ) )
+            # Make corrector
+            self.vPar = ROOT.vector(ROOT.JetCorrectorParameters)()
+            for level in correctionLevels:
+                txtfile = os.path.join( os.path.expandvars(directory), "%s_%s_%s.txt"%( filename, level, jetFlavour)  )
+                self.vPar.push_back( ROOT.JetCorrectorParameters( txtfile, "" ) )
 
-        self.JetCorrector = ROOT.FactorizedJetCorrector(self.vPar) 
+            self.jetCorrectors.append( ( runnumber,  ROOT.FactorizedJetCorrector(self.vPar)) )
+
+        # Sort IOVs
+        self.jetCorrectors.sort( key = lambda p: p[0] )
+
+    def correction(self, rawPt, eta, area, rho, run = 1):
+
+        for runnumber, corrector in reversed( self.jetCorrectors ):
+            if run >= runnumber:
+                corrector.setJetPt( rawPt )
+                corrector.setJetEta( eta )
+                corrector.setJetA( area )
+                corrector.setRho( rho )
+                return corrector.getCorrection()
 
 if __name__ == "__main__":
 
