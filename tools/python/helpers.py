@@ -39,6 +39,13 @@ def bestDRMatchInCollection(l, coll, deltaR = 0.2, deltaRelPt = 0.5 ):
     else:
         return None
 
+def jetID(j):
+    if abs(j.eta())<3.0:
+        jetId = True if abs(j.eta())>2.4 else j.chargedHadronEnergyFraction()>0 and j.chargedMultiplicity()>0 and j.chargedEmEnergyFraction()<0.99
+        return jetId and j.neutralHadronEnergyFraction()<0.99 and j.neutralEmEnergyFraction()<0.99 and j.chargedMultiplicity()+j.neutralMultiplicity()>1
+    else:
+        return j.neutralEmEnergyFraction()<0.9 and j.neutralMultiplicity()>10
+
 def getFileList(dir, histname='histo', maxN=-1):
     import os
     filelist = os.listdir(os.path.expanduser(dir))

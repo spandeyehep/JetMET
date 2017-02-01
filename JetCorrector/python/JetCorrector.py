@@ -43,15 +43,17 @@ class JetCorrector:
             
             for level in correctionLevels:
                 txtfile = os.path.join( os.path.expandvars(directory), "%s_%s_%s.txt"%( filename, level, jetFlavour)  )
+
                 # Do we have the txt file?
                 if not os.path.exists( txtfile ):
                     logger.info( "txt file %s not found.", txtfile )
-                    # Do we actually have the targ.gz?
+
+                    # Do we actually have the tar.gz?
                     if not os.path.exists( target ):
                         logger.info( "%s not found. Downloading from %s.", target, source )
                         wget( source, target )
 
-                    # Extract txt files
+                    # Extract txt files that match the bill
                     logger.info( "Extracting %s", target )
                     with tarfile.open(target, 'r:gz') as tar:
                         for member in tar.getmembers():
