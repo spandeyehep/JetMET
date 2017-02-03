@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 #scripts
-ROOT.gROOT.LoadMacro("$CMSSW_BASE/src/StopsDilepton/tools/scripts/tdrstyle.C")
+ROOT.gROOT.LoadMacro("$CMSSW_BASE/src/JetMET/tools/scripts/tdrstyle.C")
 ROOT.setTDRStyle()
 mZ=91.1876
 
