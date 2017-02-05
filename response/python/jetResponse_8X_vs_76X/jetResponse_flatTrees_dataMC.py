@@ -15,7 +15,7 @@ from RootTools.plot.styles import lineStyle
 import RootTools.plot.plotting as plotting
 
 #Helper
-from helpers import deltaR2
+from JetMET.tools.helpers import deltaR2
 
 # argParser
 import argparse
