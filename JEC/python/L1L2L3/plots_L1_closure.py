@@ -16,10 +16,6 @@ from JetMET.tools.helpers                import deltaR
 
 # Object selection
 from JetMET.tools.objectSelection        import getFilterCut, getJets
-
-# JEC on the fly
-from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
-
 #
 # Arguments
 # 
@@ -37,6 +33,17 @@ import JetMET.tools.logger as logger
 import RootTools.core.logger as logger_rt
 logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
+
+
+# JEC on the fly
+from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
+
+# pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
+jetCorrector_L1MC          = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet'] )
+jetCorrector_L1Data        = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet'] )
+jetCorrector_L1L2L3MC      = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+jetCorrector_L1L2L3Data    = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+jetCorrector_L1L2L3ResData = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
 
 if args.small:                        args.plot_directory += "_small"
 #
@@ -86,7 +93,7 @@ def drawPlots(plots, mode, dataMCScale):
 # Read variables and sequences
 #
 read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_mt2ll/F", "dl_mt2bb/F", "dl_mt2blbl/F",
-                  "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I"]
+                  "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", "rho/F"]
 sequence = []
 
 # extra lepton stuff
@@ -98,7 +105,38 @@ read_variables += [
 def makeJetBalancing( event, sample ):
     good_jets = getJets( event, jetColl="JetGood")
 
-    event.r_ptbal = good_jets[0]['rawPt'] / event.dl_pt
+    # leading jet
+    rawPt = good_jets[0]['rawPt']
+    eta   = good_jets[0]['eta']
+    event.area  = good_jets[0]['area']
+
+    # compute correction factors
+    if sample.isData:
+        corr    = jetCorrector_L1L2L3ResData.correction(rawPt, eta, event.area, event.rho) 
+        corr_L1 = jetCorrector_L1Data.correction(rawPt, eta, event.area, event.rho)
+    else:  
+        corr    = jetCorrector_L1L2L3MC.correction(rawPt, eta, event.area, event.rho) 
+        corr_L1 = jetCorrector_L1MC.correction(rawPt, eta, event.area, event.rho)
+
+    event.deltaPU = rawPt*corr*(1-1./corr_L1)
+    event.deltaPUPerArea    =   event.deltaPU/event.area
+
+    if event.rho>0:
+        event.deltaPUPerRho     =   event.deltaPU/event.rho 
+        event.deltaPUPerAreaRho =   event.deltaPU/(event.rho*event.area)
+    else:
+        event.deltaPUPerRho     =  float('nan') 
+        event.deltaPUPerAreaRho =  float('nan') 
+
+    # balance raw jet
+    event.r_ptbal_raw  = rawPt / event.dl_pt
+    # balance jet corrected for everything EXCEPT L1, however, L2L3+L2L3res are evaluated at the L1 corrected pT
+    event.r_ptbal_noL1  = ( corr / corr_L1 ) / event.dl_pt
+    # balance L1 corrected jet 
+    event.r_ptbal_L1   = rawPt*corr_L1 / event.dl_pt
+    # balance fully corrected jet
+    event.r_ptbal_corr = corr / event.dl_pt
+
     return
 
 sequence.append( makeJetBalancing )
@@ -163,6 +201,24 @@ for index, mode in enumerate(allModes):
     name = 'nVtxs', texX = 'vertex multiplicity', texY = 'Number of Events',
     attribute = TreeVariable.fromString( "nVert/I" ),
     binning=[50,0,50],
+  ))
+
+  plots.append(Plot(
+    name = 'rho', texX = 'rho', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "rho/F" ),
+    binning=[50,0,50],
+  ))
+
+  plots.append(Plot(
+    name = 'leading_jet_area', texX = 'area', texY = 'Number of Events',
+    attribute = lambda event, sample: event.area,
+    binning=[50,0,1],
+  ))
+
+  plots.append(Plot(
+    name = 'leading_jet_radius', texX = 'area', texY = 'Number of Events',
+    attribute = lambda event, sample: sqrt(event.area/pi),
+    binning=[50,0,1],
   ))
 
   plots.append(Plot(

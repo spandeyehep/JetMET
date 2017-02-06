@@ -19,8 +19,8 @@ def wget( source, target ):
 
     urllib.urlretrieve( source, target )
 
-correction_levels_data = [ 'L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual' ]
-correction_levels_mc = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
+correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual' ]
+correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 
 class JetCorrector:
 
@@ -28,21 +28,29 @@ class JetCorrector:
             iovs, 
             correctionLevels, 
             baseurl     = "https://github.com/cms-jet/JECDatabase/raw/master/tarballs/",
-            jetFlavour  = 'AK4PFchs',
+            jetflavour  = 'AK4PFchs',
             directory   = "$CMSSW_BASE/src/JetMET/JetCorrector/data/",
             ):
 
-        extension   = "tar.gz"
+        self.extension   = "tar.gz"
+        self.iovs        = iovs
+        self.correctionLevels = correctionLevels
+        self.baseurl     = baseurl
+        self.jetflavour  = jetflavour
+        self.directory   = directory
+
+        self.makeCorrectors()
+
+    def makeCorrectors( self ):
         self.jetCorrectors = []
-        for runnumber, filename in iovs:
+        for runnumber, filename in self.iovs:
             # Download file
-            source = os.path.join( baseurl, "%s.%s"%(filename, extension) )
-            target = os.path.join( os.path.expandvars( directory ), "%s.%s"%(filename, extension) )
+            source = os.path.join( self.baseurl, "%s.%s"%(filename, self.extension) )
+            target = os.path.join( os.path.expandvars( self.directory ), "%s.%s"%(filename, self.extension) )
 
             params = ROOT.vector(ROOT.JetCorrectorParameters)()
-            
-            for level in correctionLevels:
-                txtfile = os.path.join( os.path.expandvars(directory), "%s_%s_%s.txt"%( filename, level, jetFlavour)  )
+            for level in self.correctionLevels:
+                txtfile = os.path.join( os.path.expandvars( self.directory ), "%s_%s_%s.txt"%( filename, level, self.jetflavour)  )
 
                 # Do we have the txt file?
                 if not os.path.exists( txtfile ):
@@ -57,11 +65,13 @@ class JetCorrector:
                     logger.info( "Extracting %s", target )
                     with tarfile.open(target, 'r:gz') as tar:
                         for member in tar.getmembers():
-                            if not member.name.endswith( jetFlavour+'.txt' ): continue
+                            if not member.name.endswith( self.jetflavour+'.txt' ): continue
                             member_filename = os.path.basename( member.name )
                             logger.debug( "Found file %s in %s", member_filename, target )
-                            with file( os.path.join( os.path.expandvars(directory), member_filename), 'w') as f_out:
+                            with file( os.path.join( os.path.expandvars( self.directory ), member_filename), 'w') as f_out:
                                 f_out.writelines( tar.extractfile( member ).readlines() )
+
+                logger.debug( "Adding runnumber %i txtfile %s", runnumber, txtfile )
 
                 params.push_back( ROOT.JetCorrectorParameters( txtfile, "" ) )
 
@@ -70,6 +80,10 @@ class JetCorrector:
 
         # Sort wrt IOVs
         self.jetCorrectors.sort( key = lambda p: p[0] )
+
+    
+    def fromLevels( self, correctionLevels ):
+        return JetCorrector( iovs = self.iovs, correctionLevels = correctionLevels, baseurl = self.baseurl, jetflavour = self.jetflavour, directory = self.directory )
 
     def correction(self, rawPt, eta, area, rho, run = 1):
 
