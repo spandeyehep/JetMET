@@ -18,7 +18,7 @@ from JetMET.tools.helpers                import deltaR
 from JetMET.tools.objectSelection        import getFilterCut, getJets
 
 # JEC on the fly
-from JetMET.JetCorrector.jetCorrectors_Moriond import jetCorrector_data, jetCorrector_mc
+from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
 
 #
 # Arguments
