@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-''' Analysis script for standard plots
+''' Analysis script for L1 closure plots
 '''
 #
 # Standard imports and batch mode
@@ -12,7 +12,13 @@ from math                                import sqrt, cos, sin, pi
 from RootTools.core.standard             import *
 from JetMET.tools.user                   import plot_directory
 from JetMET.tools.helpers                import deltaPhi
-from JetMET.tools.objectSelection        import getFilterCut
+from JetMET.tools.helpers                import deltaR
+
+# Object selection
+from JetMET.tools.objectSelection        import getFilterCut, getJets
+
+# JEC on the fly
+from JetMET.JetCorrector.jetCorrectors_Moriond import jetCorrector_data, jetCorrector_mc
 
 #
 # Arguments
@@ -37,14 +43,14 @@ if args.small:                        args.plot_directory += "_small"
 # Make samples, will be searched for in the postProcessing directory
 #
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v26/dilepTiny/"
-from JetMET.JEC.L3res.cmgTuples_Spring16_mAODv2_postProcessed import *
+postProcessing_directory = "postProcessed_80X_v26/dilep/"
+from JetMET.JEC.samples.cmgTuples_Spring16_mAODv2_postProcessed import *
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v26/dilepTiny"
-from JetMET.JEC.L3res.cmgTuples_Data25ns_80X_23Sep_postProcessed import *
+postProcessing_directory = "postProcessed_80X_v26/dilep"
+from JetMET.JEC.samples.cmgTuples_Data25ns_80X_23Sep_postProcessed import *
 
-selection       = 'njet1p'
-selectionString = 'nJetGood>=1'
+selection       = 'ptll30-btb-njet1p-nbtag0'
+selectionString = 'dl_pt>30&&cos(dl_phi-JetGood_phi[0])<-0.5&&nJetGood>=1&&nBTag==0'
 
 #
 # Text on the plots
@@ -79,7 +85,7 @@ def drawPlots(plots, mode, dataMCScale):
 #
 # Read variables and sequences
 #
-read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,btagCSV/F]", "dl_mass/F", "dl_eta/F", "dl_mt2ll/F", "dl_mt2bb/F", "dl_mt2blbl/F",
+read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_mt2ll/F", "dl_mt2bb/F", "dl_mt2blbl/F",
                   "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I"]
 sequence = []
 
@@ -88,21 +94,14 @@ read_variables += [
      "nLepGood/I", "LepGood[pt/F,eta/F,etaSc/F,phi/F,pdgId/I,tightId/I,miniRelIso/F,relIso03/F,sip3d/F,mediumMuonId/I,mvaIdSpring15/F,lostHits/I,convVeto/I,dxy/F,dz/F,jetPtRelv2/F,jetPtRatiov2/F,eleCutId_Spring2016_25ns_v1_ConvVetoDxyDz/I]",
      "nLepOther/I", "LepOther[pt/F,eta/F,etaSc/F,phi/F,pdgId/I,tightId/I,miniRelIso/F,relIso03/F,sip3d/F,mediumMuonId/I,mvaIdSpring15/F,lostHits/I,convVeto/I,dxy/F,dz/F,jetPtRelv2/F,jetPtRatiov2/F,eleCutId_Spring2016_25ns_v1_ConvVetoDxyDz/I]",
     ]
-# Compute leptons
-from StopsDilepton.tools.objectSelection    import alwaysTrue, alwaysFalse, getGoodAndOtherLeptons, leptonVars
-from StopsDilepton.tools.helpers            import deltaR
-import itertools
 
-#def makeLeptons( event, sample ):
-#    all_muons = sorted( getGoodAndOtherLeptons(event, collVars = leptonVars, ptCut=10, mu_selector = alwaysTrue, ele_selector = alwaysFalse), key = lambda p:-p['pt'] )
-#    if len(all_muons)>2:
-#        minDR = min([ deltaR(l1, l2) for l1, l2 in itertools.combinations( all_muons, 2 ) ] )
-#    else: 
-#        minDR = None
-#
-#    return
+def makeJetBalancing( event, sample ):
+    good_jets = getJets( event, jetColl="JetGood")
 
-#sequence.append( makeLeptons )
+    event.r_ptbal = good_jets[0]['rawPt'] / event.dl_pt
+    return
+
+sequence.append( makeJetBalancing )
 
 z_window = 7
 def getLeptonSelection( mode ):
@@ -131,13 +130,14 @@ for index, mode in enumerate(allModes):
   weight_ = lambda event, sample: event.weight
 
   multiBosonList = [multiBoson]
-  mc             = [ Top_pow, TTZ_LO, TTXNoZ] + multiBosonList + [DY_HT_LO]
+  #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ] + multiBosonList
+  mc             = [DY] + [ Top_pow, TTZ_LO, TTXNoZ] + multiBosonList 
 
   for sample in mc: sample.style = styles.fillStyle(sample.color)
 
   for sample in mc:
     sample.scale          = lumi_scale
-    sample.read_variables = ['reweightLeptonHIPSF/F','reweightDilepTriggerBackup/F','reweightLeptonSF/F','reweightBTag_SF/F','reweightPU36fb/F', 'nTrueInt/F']
+    sample.read_variables = ['reweightLeptonHIPSF/F','reweightDilepTriggerBackup/F','reweightLeptonSF/F','reweightPU36fb/F', 'nTrueInt/F']
    #sample.weight         = lambda event, sample: event.reweightLeptonSF*event.reweightLeptonHIPSF*event.reweightDilepTriggerBackup*nTrueInt27fb_puRW(event.nTrueInt)*event.reweightBTag_SF
     sample.weight         = lambda event, sample: event.reweightLeptonSF*event.reweightDilepTriggerBackup*event.reweightPU36fb
     sample.setSelectionString([getFilterCut(isData=False),  getLeptonSelection(mode)])
@@ -176,7 +176,6 @@ for index, mode in enumerate(allModes):
       attribute = TreeVariable.fromString( "met_phi/F" ),
       binning=[10,-pi,pi],
   ))
-
 
   plots.append(Plot(
     texX = 'number of jets', texY = 'Number of Events',
@@ -225,7 +224,7 @@ for index, mode in enumerate(allModes):
     name = 'cosZMetphi',
     attribute = lambda event, sample: cos( event.dl_phi - event.met_phi ), 
     read_variables = ["met_phi/F", "dl_phi/F"],
-    binning = [10,-1,1],
+    binning = [40,-1,1],
   ))
 
   plots.append(Plot(

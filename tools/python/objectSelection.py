@@ -2,7 +2,7 @@ from StopsDilepton.tools.helpers import mZ, getVarValue, getObjDict
 from math import *
 import numbers
 
-jetVars = ['eta','pt','phi','btagCSV', 'id']
+jetVars = ['eta','pt','phi','btagCSV','id','area','rawPt']
 
 def getJets(c, jetVars=jetVars, jetColl="Jet"):
     return [getObjDict(c, jetColl+'_', jetVars, i) for i in range(int(getVarValue(c, 'n'+jetColl)))]
