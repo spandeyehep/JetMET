@@ -58,8 +58,9 @@ class JetCorrector:
                     with tarfile.open(target, 'r:gz') as tar:
                         for member in tar.getmembers():
                             if not member.name.endswith( jetFlavour+'.txt' ): continue
-                            logger.debug( "Found file %s in %s", member.name, target )
-                            with file( os.path.join( os.path.expandvars(directory), member.name), 'w') as f_out:
+                            member_filename = os.path.basename( member.name )
+                            logger.debug( "Found file %s in %s", member_filename, target )
+                            with file( os.path.join( os.path.expandvars(directory), member_filename), 'w') as f_out:
                                 f_out.writelines( tar.extractfile( member ).readlines() )
 
                 params.push_back( ROOT.JetCorrectorParameters( txtfile, "" ) )
