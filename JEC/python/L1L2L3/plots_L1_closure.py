@@ -4,9 +4,10 @@
 #
 # Standard imports and batch mode
 #
-import ROOT, os
+import ROOT
 ROOT.gROOT.SetBatch(True)
 import itertools
+import os
 
 from math                                import sqrt, cos, sin, pi
 from RootTools.core.standard             import *
@@ -45,7 +46,7 @@ jetCorrector_L1L2L3MC      = jetCorrector_mc.fromLevels(correctionLevels   = ['L
 jetCorrector_L1L2L3Data    = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
 jetCorrector_L1L2L3ResData = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
 
-if args.small:                        args.plot_directory += "_small"
+if args.small: args.plot_directory += "_small"
 #
 # Make samples, will be searched for in the postProcessing directory
 #
@@ -73,7 +74,9 @@ def drawObjects( dataMCScale, lumi_scale ):
     ]
     return [tex.DrawLatex(*l) for l in lines] 
 
-def drawPlots(plots, mode, dataMCScale):
+
+# Formatting for 1D plots
+def draw1DPlots(plots, mode, dataMCScale):
   for log in [False, True]:
     plot_directory_ = os.path.join(plot_directory, args.plot_directory, mode + ("_log" if log else ""), selection)
     for plot in plots:
@@ -89,11 +92,63 @@ def drawPlots(plots, mode, dataMCScale):
 	    drawObjects = drawObjects( dataMCScale , lumi_scale )
       )
 
+#Formatting for 1D profiles
+def draw1DProfiles(plots, mode, dataMCScale):
+  for log in [False, True]:
+    plot_directory_ = os.path.join(plot_directory, args.plot_directory, mode + ("_log" if log else ""), selection)
+    for plot in plots:
+      if not max(l[0].GetMaximum() for l in plot.histos): continue # Empty plot
+
+      plotting.draw(plot,
+	    plot_directory = plot_directory_,
+	    ratio = {'yRange':(0.8,1.2)},
+	    logX = False, logY = log, sorting = True,
+	    yRange = (0.03, "auto") if log else (0.61, 1.41),
+	    scaling = {},
+	    legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
+	    drawObjects = drawObjects( dataMCScale , lumi_scale )
+      )
+
+#Formatting for 2D plots 
+def draw2DPlots(plots, mode, dataMCScale):
+  for log in [False, True]:
+    plot_directory_ = os.path.join(plot_directory, args.plot_directory, mode + ("_log" if log else ""), selection)
+    for plot in plots:
+      if not max(l[0].GetMaximum() for l in plot.histos): continue # Empty plot
+
+      plotting.draw2D(plot,
+	    plot_directory = plot_directory_,
+	    #ratio = {'yRange':(0.1,1.9)},
+	    logX = False, logY = False, logZ = log, #sorting = True,
+	    #yRange = (0.03, "auto") if log else (0.001, "auto"),
+	    #scaling = {},
+	    #legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
+	    drawObjects = drawObjects( dataMCScale , lumi_scale )
+      )
+
+#Formatting for 2D profiles 
+def draw2DProfiles(plots, mode, dataMCScale):
+  for log in [False, True]:
+    plot_directory_ = os.path.join(plot_directory, args.plot_directory, mode + ("_log" if log else ""), selection)
+    for plot in plots:
+      if not max(l[0].GetMaximum() for l in plot.histos): continue # Empty plot
+
+      plotting.draw2D(plot,
+        zRange = (0.7,1.3),
+	    plot_directory = plot_directory_,
+	    #ratio = {'yRange':(0.1,1.9)},
+	    logX = False, logY = False, logZ = log, #sorting = True,
+	    #yRange = (0.03, "auto") if log else (0.001, "auto"),
+	    #scaling = {},
+	    #legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
+	    drawObjects = drawObjects( dataMCScale , lumi_scale )
+      )
+
 #
 # Read variables and sequences
 #
-read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_mt2ll/F", "dl_mt2bb/F", "dl_mt2blbl/F",
-                  "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", "rho/F"]
+read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_pt/F",
+                  "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", "rho/F", 'nVert/I']
 sequence = []
 
 # extra lepton stuff
@@ -106,19 +161,19 @@ def makeJetBalancing( event, sample ):
     good_jets = getJets( event, jetColl="JetGood")
 
     # leading jet
-    rawPt = good_jets[0]['rawPt']
-    eta   = good_jets[0]['eta']
+    event.rawPt = good_jets[0]['rawPt']
+    event.eta   = good_jets[0]['eta']
     event.area  = good_jets[0]['area']
 
     # compute correction factors
     if sample.isData:
-        corr    = jetCorrector_L1L2L3ResData.correction(rawPt, eta, event.area, event.rho) 
-        corr_L1 = jetCorrector_L1Data.correction(rawPt, eta, event.area, event.rho)
+        corr    = jetCorrector_L1L2L3ResData.correction(event.rawPt, event.eta, event.area, event.rho) 
+        corr_L1 = jetCorrector_L1Data.correction(event.rawPt, event.eta, event.area, event.rho)
     else:  
-        corr    = jetCorrector_L1L2L3MC.correction(rawPt, eta, event.area, event.rho) 
-        corr_L1 = jetCorrector_L1MC.correction(rawPt, eta, event.area, event.rho)
+        corr    = jetCorrector_L1L2L3MC.correction(event.rawPt, event.eta, event.area, event.rho) 
+        corr_L1 = jetCorrector_L1MC.correction(event.rawPt, event.eta, event.area, event.rho)
 
-    event.deltaPU = rawPt*corr*(1-1./corr_L1)
+    event.deltaPU = event.rawPt*corr*(1-1./corr_L1)
     event.deltaPUPerArea    =   event.deltaPU/event.area
 
     if event.rho>0:
@@ -129,14 +184,13 @@ def makeJetBalancing( event, sample ):
         event.deltaPUPerAreaRho =  float('nan') 
 
     # balance raw jet
-    event.r_ptbal_raw  = rawPt / event.dl_pt
+    event.r_ptbal_raw  = event.rawPt / event.dl_pt
     # balance jet corrected for everything EXCEPT L1, however, L2L3+L2L3res are evaluated at the L1 corrected pT
-    event.r_ptbal_noL1  = ( corr / corr_L1 ) / event.dl_pt
+    event.r_ptbal_noL1 = event.rawPt*( corr / corr_L1 ) / event.dl_pt
     # balance L1 corrected jet 
-    event.r_ptbal_L1   = rawPt*corr_L1 / event.dl_pt
+    event.r_ptbal_L1   = event.rawPt*corr_L1 / event.dl_pt
     # balance fully corrected jet
-    event.r_ptbal_corr = corr / event.dl_pt
-
+    event.r_ptbal_corr = event.rawPt*corr / event.dl_pt
     return
 
 sequence.append( makeJetBalancing )
@@ -154,24 +208,27 @@ allPlots   = {}
 allModes   = ['mumu']#,'ee']
 for index, mode in enumerate(allModes):
   yields[mode] = {}
-  if   mode=="mumu": data_sample = DoubleMuon_Run2016_backup
-  elif mode=="ee":   data_sample = DoubleEG_Run2016_backup
-  if   mode=="mumu": data_sample.texName = "data (2 #mu)"
-  elif mode=="ee":   data_sample.texName = "data (2 e)"
+  if   mode=="mumu": data = DoubleMuon_Run2016_backup
+  elif mode=="ee":   data = DoubleEG_Run2016_backup
+  if   mode=="mumu": data.texName = "data (2 #mu)"
+  elif mode=="ee":   data.texName = "data (2 e)"
 
-  data_sample.setSelectionString([getFilterCut(isData=True), getLeptonSelection(mode)])
-  data_sample.name           = "data"
-  data_sample.read_variables = ["evt/I","run/I"]
-  data_sample.style          = styles.errorStyle(ROOT.kBlack)
-  lumi_scale                 = data_sample.lumi/1000
+  data.setSelectionString([getFilterCut(isData=True), getLeptonSelection(mode)])
+  data.name           = "data"
+  data.read_variables = ["evt/I","run/I"]
+  data.style          = styles.errorStyle(ROOT.kBlack)
+  lumi_scale                 = data.lumi/1000
 
   weight_ = lambda event, sample: event.weight
 
-  multiBosonList = [multiBoson]
-  #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ] + multiBosonList
-  mc             = [DY] + [ Top_pow, TTZ_LO, TTXNoZ] + multiBosonList 
+  #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ, multiBoson]
+  DY_sample = DY_HT_LO
+  other_mc = Sample.combine( name = "other", texName = "VV/VVV/TTX/tZq/tWZ", samples = [TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kMagenta )
+  all_mc   = Sample.combine( name = "other", texName = "simulation", samples = [DY_sample, Top_pow, TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kBlue )
+  mc             = [DY_sample, Top_pow, other_mc]
 
   for sample in mc: sample.style = styles.fillStyle(sample.color)
+  all_mc.style = styles.lineStyle( all_mc.color, errors = True )    
 
   for sample in mc:
     sample.scale          = lumi_scale
@@ -180,16 +237,21 @@ for index, mode in enumerate(allModes):
     sample.weight         = lambda event, sample: event.reweightLeptonSF*event.reweightDilepTriggerBackup*event.reweightPU36fb
     sample.setSelectionString([getFilterCut(isData=False),  getLeptonSelection(mode)])
 
-  stack = Stack(mc, data_sample)
+  stack          = Stack(mc, data)
+  stack_profile  = Stack([all_mc], data )
 
   if args.small:
-        for sample in stack.samples:
+        for sample in stack.samples + stack_profile.samples:
             sample.reduceFiles( to = 1 )
 
   # Use some defaults
-  Plot.setDefaults(stack = stack, weight = weight_, selectionString = selectionString, addOverFlowBin='upper')
+  Plot.setDefaults(stack = stack, weight = weight_,   selectionString = selectionString, addOverFlowBin='upper')
+  Plot2D.setDefaults(stack = stack, weight = weight_, selectionString = selectionString)
   
-  plots = []
+  plots         = []
+  profiles1D    = []
+  plots2D       = []
+  profiles2D    = []
 
   plots.append(Plot(
     name = 'yield', texX = 'yield', texY = 'Number of Events',
@@ -197,6 +259,7 @@ for index, mode in enumerate(allModes):
     binning=[3, 0, 3],
   ))
 
+  # 1D plots
   plots.append(Plot(
     name = 'nVtxs', texX = 'vertex multiplicity', texY = 'Number of Events',
     attribute = TreeVariable.fromString( "nVert/I" ),
@@ -212,15 +275,119 @@ for index, mode in enumerate(allModes):
   plots.append(Plot(
     name = 'leading_jet_area', texX = 'area', texY = 'Number of Events',
     attribute = lambda event, sample: event.area,
-    binning=[50,0,1],
+    binning=[60,0.3,0.9],
   ))
 
   plots.append(Plot(
-    name = 'leading_jet_radius', texX = 'area', texY = 'Number of Events',
+    name = 'leading_jet_radius', texX = 'radius', texY = 'Number of Events',
     attribute = lambda event, sample: sqrt(event.area/pi),
-    binning=[50,0,1],
+    binning=[50,0.2,0.6],
   ))
 
+  # 2D plots
+  plots2D.append(Plot2D(
+    name = 'rho_vs_nvtx_data', texY = 'rho', texX = 'number of vertices',
+    stack = Stack( data ),
+    attribute = ( 
+        TreeVariable.fromString( "nVert/I" ), 
+        TreeVariable.fromString( "rho/F" ), 
+        ), 
+    binning=[50,0,50,200,0,50],
+  ))
+
+  plots2D.append(Plot2D(
+    name = 'rho_vs_nvtx_mc', texY = 'rho', texX = 'number of vertices',
+    stack = Stack( mc ),
+    attribute = ( 
+        TreeVariable.fromString( "nVert/I" ), 
+        TreeVariable.fromString( "rho/F" ), 
+        ), 
+    binning=[50,0,50,200,0,50],
+  ))
+
+  for corrLevel in ['raw', 'L1', 'noL1', 'corr']: 
+    profiles1D.append(Plot(
+      name = 'r_ptbal_%s_profile_eta'%corrLevel, texX = '#eta (jet)', texY = '%s-R(bal)'%corrLevel,
+      stack = stack_profile, 
+      histo_class = ROOT.TProfile,
+      attribute = (
+          "eta",
+          "r_ptbal_%s"%corrLevel,
+      ),
+      binning=[104,-5.2,5.2],
+    ))
+  
+    # 2D profiles
+    profiles2D.append(Plot(
+      name = 'r_ptbal_%s_profile2D_pt_eta_mc'%corrLevel, texX = "p_{T}(Z) (GeV)", texY = '#eta (jet)', 
+      stack = Stack([all_mc]), 
+      histo_class = ROOT.TProfile2D,
+      attribute = (
+          "dl_pt",
+          "eta",
+          "r_ptbal_%s"%corrLevel,
+      ),
+      binning=[15,0,300,26,-5.2,5.2],
+    ))
+  
+    profiles2D.append(Plot(
+      name = 'r_ptbal_%s_profile2D_pt_eta_data'%corrLevel, texX = "p_{T}(Z) (GeV)", texY = '#eta (jet)', 
+      stack = Stack([data]), 
+      histo_class = ROOT.TProfile2D,
+      attribute = (
+          "dl_pt",
+          "eta",
+          "r_ptbal_%s"%corrLevel,
+      ),
+      binning=[15,0,300,26,-5.2,5.2],
+    ))
+
+    for eta_bname, eta_bcut in [    \
+        ('all', '(1)'), 
+        ('barrel', 'abs(JetGood_eta[0])<1.3'), 
+        ('endcap', 'abs(JetGood_eta[0])>=1.3&&abs(JetGood_eta[0])<3'), 
+        ('forward', 'abs(JetGood_eta[0])>=3') ]: 
+
+      # 1D plots
+      plots.append(Plot(
+        name = 'r_ptbal_%s_%s'%( corrLevel, eta_bname), 
+        texX = '%s-R(bal)'%corrLevel, 
+        texY = 'Number of Events',
+        attribute = "r_ptbal_%s"%corrLevel,
+        selectionString = "&&".join( [ selectionString, eta_bcut ] ),
+        binning=[90,0,3],
+      ))
+
+      # 1D profiles
+      profiles1D.append(Plot(
+        name = 'r_ptbal_%s_profile_nvtx_%s'%( corrLevel, eta_bname ), 
+        texX = 'number of vertices', 
+        texY = '%s-R(bal)'%corrLevel,
+        stack = stack_profile, 
+        histo_class = ROOT.TProfile,
+        attribute = (
+            "nVert",
+            "r_ptbal_%s"%corrLevel,
+        ),
+        selectionString = "&&".join( [ selectionString, eta_bcut ] ),
+        binning=[20,0,60],
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_ptbal_%s_profile_ptZ_%s'%( corrLevel, eta_bname), 
+        texX = 'p_{T}(Z) (GeV)', 
+        texY = '%s-R(bal)'%corrLevel,
+        stack = stack_profile, 
+        histo_class = ROOT.TProfile,
+        attribute = (
+            "dl_pt",
+            "r_ptbal_%s"%corrLevel,
+        ),
+        selectionString = "&&".join( [ selectionString, eta_bcut ] ),
+        binning=[50,0,300],
+      ))
+
+  # standard 1D plots
   plots.append(Plot(
       texX = 'E_{T}^{miss} (GeV)', texY = 'Number of Events / 20 GeV',
       attribute = TreeVariable.fromString( "met_pt/F" ),
@@ -396,7 +563,7 @@ for index, mode in enumerate(allModes):
     binning = [10,-1,1],
   ))
 
-  plotting.fill(plots, read_variables = read_variables, sequence = sequence)
+  plotting.fill(plots + profiles1D + plots2D + profiles2D, read_variables = read_variables, sequence = sequence)
 
   # Get normalization yields from yield histogram
   for plot in plots:
@@ -411,4 +578,7 @@ for index, mode in enumerate(allModes):
   yields[mode]["MC"] = sum(yields[mode][s.name] for s in mc)
   dataMCScale        = yields[mode]["data"]/yields[mode]["MC"] if yields[mode]["MC"] != 0 else float('nan')
 
-  drawPlots(plots, mode, dataMCScale)
+  draw1DPlots(      plots,      mode, dataMCScale )
+  draw1DProfiles(   profiles1D, mode, dataMCScale )
+  draw2DPlots(      plots2D,    mode, dataMCScale )
+  draw2DProfiles(   profiles2D, mode, dataMCScale )
