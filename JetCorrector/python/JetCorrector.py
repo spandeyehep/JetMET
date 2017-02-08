@@ -85,7 +85,7 @@ class JetCorrector:
     def fromLevels( self, correctionLevels ):
         return JetCorrector( iovs = self.iovs, correctionLevels = correctionLevels, baseurl = self.baseurl, jetflavour = self.jetflavour, directory = self.directory )
 
-    def correction(self, rawPt, eta, area, rho, run = 1):
+    def correction(self, rawPt, eta, area, rho, run ):
 
         for runnumber, corrector in reversed( self.jetCorrectors ):
             if run >= runnumber:

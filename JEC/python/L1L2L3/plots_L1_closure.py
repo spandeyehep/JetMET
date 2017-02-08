@@ -167,11 +167,11 @@ def makeJetBalancing( event, sample ):
 
     # compute correction factors
     if sample.isData:
-        corr    = jetCorrector_L1L2L3ResData.correction(event.rawPt, event.eta, event.area, event.rho) 
-        corr_L1 = jetCorrector_L1Data.correction(event.rawPt, event.eta, event.area, event.rho)
+        corr    = jetCorrector_L1L2L3ResData.correction(event.rawPt, event.eta, event.area, event.rho, event.run) 
+        corr_L1 = jetCorrector_L1Data.correction(event.rawPt, event.eta, event.area, event.rho, event.run)
     else:  
-        corr    = jetCorrector_L1L2L3MC.correction(event.rawPt, event.eta, event.area, event.rho) 
-        corr_L1 = jetCorrector_L1MC.correction(event.rawPt, event.eta, event.area, event.rho)
+        corr    = jetCorrector_L1L2L3MC.correction(event.rawPt, event.eta, event.area, event.rho, event.run) 
+        corr_L1 = jetCorrector_L1MC.correction(event.rawPt, event.eta, event.area, event.rho, event.run)
 
     event.deltaPU = event.rawPt*corr*(1-1./corr_L1)
     event.deltaPUPerArea    =   event.deltaPU/event.area
