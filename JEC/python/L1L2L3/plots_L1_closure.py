@@ -147,7 +147,7 @@ def draw2DProfiles(plots, mode, dataMCScale):
 #
 # Read variables and sequences
 #
-read_variables = ["weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_pt/F",
+read_variables = ["run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", "dl_mass/F", "dl_eta/F", "dl_pt/F",
                   "met_pt/F", "met_phi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", "rho/F", 'nVert/I']
 sequence = []
 
@@ -215,7 +215,6 @@ for index, mode in enumerate(allModes):
 
   data.setSelectionString([getFilterCut(isData=True), getLeptonSelection(mode)])
   data.name           = "data"
-  data.read_variables = ["evt/I","run/I"]
   data.style          = styles.errorStyle(ROOT.kBlack)
   lumi_scale                 = data.lumi/1000
 
