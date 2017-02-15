@@ -222,8 +222,8 @@ for index, mode in enumerate(allModes):
 
   #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ, multiBoson]
   DY_sample = DY_HT_LO
-  other_mc = Sample.combine( name = "other", texName = "VV/VVV/TTX/tZq/tWZ", samples = [TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kMagenta )
-  all_mc   = Sample.combine( name = "other", texName = "simulation", samples = [DY_sample, Top_pow, TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kBlue )
+  other_mc = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = [TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kMagenta )
+  all_mc   = Sample.combine( name = "all_mc",   texName = "simulation", samples = [DY_sample, Top_pow, TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kBlue )
   mc             = [DY_sample, Top_pow, other_mc]
 
   for sample in mc: sample.style = styles.fillStyle(sample.color)
@@ -280,6 +280,7 @@ for index, mode in enumerate(allModes):
   plots.append(Plot(
     name = 'leading_jet_radius', texX = 'radius', texY = 'Number of Events',
     attribute = lambda event, sample: sqrt(event.area/pi),
+    #weight = [[ weight_, weight_],[weight_]],
     binning=[50,0.2,0.6],
   ))
 
@@ -297,6 +298,7 @@ for index, mode in enumerate(allModes):
   plots2D.append(Plot2D(
     name = 'rho_vs_nvtx_mc', texY = 'rho', texX = 'number of vertices',
     stack = Stack( mc ),
+    #weight = [[weight_],[weight_]],
     attribute = ( 
         TreeVariable.fromString( "nVert/I" ), 
         TreeVariable.fromString( "rho/F" ), 
@@ -431,8 +433,8 @@ for index, mode in enumerate(allModes):
 
   plots.append(Plot(
       texX = '#eta(ll) ', texY = 'Number of Events',
-      name = 'dl_eta', attribute = lambda event, sample: abs(event.dl_eta), read_variables = ['dl_eta/F'],
-      binning=[10,0,3],
+      name = 'dl_eta', attribute = lambda event, sample: event.dl_eta, read_variables = ['dl_eta/F'],
+      binning=[104,-5.2,5.2],
   ))
 
   plots.append(Plot(
@@ -493,8 +495,8 @@ for index, mode in enumerate(allModes):
 
   plots.append(Plot(
     texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
-    name = 'jet1_eta', attribute = lambda event, sample: abs(event.JetGood_eta[0]),
-    binning=[10,0,3],
+    name = 'jet1_eta', attribute = lambda event, sample: event.JetGood_eta[0],
+    binning=[104,-5.2,5.2],
   ))
 
   plots.append(Plot(
@@ -520,8 +522,8 @@ for index, mode in enumerate(allModes):
 
   plots.append(Plot(
     texX = '#eta(2nd leading jet) (GeV)', texY = 'Number of Events',
-    name = 'jet2_eta', attribute = lambda event, sample: abs(event.JetGood_eta[1]),
-    binning=[10,0,3],
+    name = 'jet2_eta', attribute = lambda event, sample: event.JetGood_eta[1],
+    binning=[104,-5.2,5.2],
   ))
 
   plots.append(Plot(
