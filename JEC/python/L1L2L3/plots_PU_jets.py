@@ -24,7 +24,7 @@ import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging")
 argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?', )
-argParser.add_argument('--plot_directory',     action='store',      default='PUjets')
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/PUjets')
 args = argParser.parse_args()
 
 #
@@ -118,7 +118,7 @@ def draw1DPlotsFlavourPairs(plot_pairs, mode, dataMCScale):
 	    logX = False, logY = log, sorting = True,
 	    yRange = (0.03, "auto") if log else (0.001, "auto"),
 	    scaling = {},
-	    legend = (0.50,0.94-0.04*sum(map(len, plot_.histos)),0.94,0.88),
+	    legend = (0.5,0.97-0.035*sum(map(len, plot_.histos)),0.9,0.88),
 	    drawObjects = drawObjects( dataMCScale , lumi_scale )
       )
 
@@ -166,15 +166,12 @@ def makeJetMatchingInfo( event, sample ):
         event.isGluon = jetHasMCMatch( good_jets[0] ) and good_jets[0]['partonFlavour'] == 21
         event.isPU    = good_jets[0]['mcPt']==0 and good_jets[0]['partonFlavour'] == 0
         event.isOther = not (event.isQuark or event.isGluon or event.isPU)
-
         #print sample.name, good_jets[0]['pt'], good_jets[0]['partonFlavour'], good_jets[0]['mcPt'], event.isQuark, event.isGluon, event.isPU, event.isOther
     else:
         event.isQuark = None 
         event.isGluon = None 
         event.isPU    = None 
         event.isOther = None 
-
-
     return
 
 sequence.append( makeJetMatchingInfo )
@@ -200,6 +197,13 @@ jet_flavours = [ \
     {'name':'other'    , 'style':styles.lineStyle( ROOT.kMagenta, width = 2 ) , 'weight': weight_isOther},
 ]
 
+def firstJetEta( ptlow, pthigh ):
+    return lambda event, sample: event.JetGood_eta[0] if event.JetGood_pt[0]>=ptlow and event.JetGood_pt[0]<pthigh else None
+def firstJetPt ( absetalow, absetahigh ):
+    return lambda event, sample: event.JetGood_pt[0] if abs(event.JetGood_eta[0])>=absetalow and abs(event.JetGood_eta[0])<absetahigh else None
+def firstJetRawPt ( absetalow, absetahigh ):
+    return lambda event, sample: event.JetGood_rawPt[0] if abs(event.JetGood_eta[0])>=absetalow and abs(event.JetGood_eta[0])<absetahigh else None
+
 #
 # Loop over channels
 #
@@ -221,8 +225,8 @@ for index, mode in enumerate(allModes):
   lumi_scale          = data.lumi/1000
 
   #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ, multiBoson]
-  DY_sample = DY
-  #DY_sample = DY_HT_LO
+  #DY_sample = DY
+  DY_sample = DY_HT_LO
   TTJets_sample = TTJets
   other_mc_samples = [TTZ_LO, TTXNoZ, multiBoson]
   other_mc  = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = other_mc_samples, color = ROOT.kMagenta )
@@ -269,9 +273,50 @@ for index, mode in enumerate(allModes):
     texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
     name = 'jet1_eta_flavours', attribute = lambda event, sample: event.JetGood_eta[0],
     stack  = jet_flavour_stack,
-    weight = [ [flavour['weight']]  for flavour in jet_flavours ],
+    weight = [ [flavour['weight'] ] for flavour in jet_flavours ],
     binning=[104,-5.2,5.2],
   )])
+
+  for ptlow, pthigh in [ (20,30), (30,40), (40,50), (50,100), (100,1000)]:
+      plot_flavour_pairs.append( [ 
+        Plot(
+        texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_eta_pt_%i_%i'%(ptlow, pthigh), attribute = firstJetEta( ptlow, pthigh ),
+        binning=[104,-5.2,5.2],
+      ), Plot(
+        texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_eta_flavours_pt_%i_%i'%(ptlow, pthigh), attribute = firstJetEta( ptlow, pthigh ),
+        stack  = jet_flavour_stack,
+        weight = [ [flavour['weight'] ] for flavour in jet_flavours ],
+        binning=[104,-5.2,5.2],
+      )])
+  for etalow, etahigh in [ (0,1), (1,2), (2,2.8), (2.8,3), (3,3.2), (3.2,4), (4,5.2)]:
+      plot_flavour_pairs.append( [ 
+        Plot(
+        texX = 'p_{T}(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_pt_eta_%i_%i'%(10*etalow, 10*etahigh), attribute = firstJetPt( etalow, etahigh ),
+        binning=[100,30,230],
+      ), Plot(
+        texX = 'p_{T}(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_pt_flavours_eta_%i_%i'%(10*etalow, 10*etahigh), attribute = firstJetPt( etalow, etahigh ),
+        stack  = jet_flavour_stack,
+        weight = [ [flavour['weight'] ] for flavour in jet_flavours ],
+        binning=[100,30,230],
+      )])
+  for etalow, etahigh in [ (0,1), (1,2), (2,2.8), (2.8,3), (3,3.2), (3.2,4), (4,5.2)]:
+      plot_flavour_pairs.append( [ 
+        Plot(
+        texX = 'p_{T}(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_rawPt_eta_%i_%i'%(10*etalow, 10*etahigh), attribute = firstJetRawPt( etalow, etahigh ),
+        binning=[100,30,230],
+      ), Plot(
+        texX = 'p_{T}(leading jet) (GeV)', texY = 'Number of Events',
+        name = 'jet1_rawPt_flavours_eta_%i_%i'%(10*etalow, 10*etahigh), attribute = firstJetRawPt( etalow, etahigh ),
+        stack  = jet_flavour_stack,
+        weight = [ [flavour['weight'] ] for flavour in jet_flavours ],
+        binning=[100,30,230],
+      )])
+
 
   plotting.fill( plots + sum(plot_flavour_pairs,[]), read_variables = read_variables, sequence = sequence )
 
