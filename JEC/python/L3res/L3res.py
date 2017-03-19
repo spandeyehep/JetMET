@@ -36,14 +36,11 @@ logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
 
 ## JEC on the fly
-#from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
+from JetMET.JetCorrector.jetCorrectors_Summer16 import jetCorrector_data, jetCorrector_mc
 #
 ## pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
-#jetCorrector_L1MC          = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet'] )
-#jetCorrector_L1Data        = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet'] )
-#jetCorrector_L1L2L3MC      = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-#jetCorrector_L1L2L3Data    = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-#jetCorrector_L1L2L3ResData = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
+jetCorrector_L1L2L3MC      = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+jetCorrector_L1L2L3Data    = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
 
 if args.small: args.plot_directory += "_small"
 #
@@ -145,7 +142,7 @@ def makeL3ResObservables( event, sample ):
     event.subleading_jet = good_jets[1] if len(good_jets)>=2 else nan_jet
     event.alpha = event.subleading_jet['rawPt'] / event.dl_pt
 
-    event.r_ptbal = event.leading_jet['pt'] / event.dl_pt
+    event.r_ptbal = event.leading_jet['rawPt'] / event.dl_pt
     event.r_mpf   = 1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt
     
 
