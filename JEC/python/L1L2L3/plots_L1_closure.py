@@ -40,11 +40,11 @@ logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
 
 # pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
-jetCorrector_L1MC          = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet'] )
-jetCorrector_L1Data        = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet'] )
-jetCorrector_L1L2L3MC      = jetCorrector_mc.fromLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-jetCorrector_L1L2L3Data    = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-jetCorrector_L1L2L3ResData = jetCorrector_data.fromLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
+jetCorrector_L1MC          = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet'] )
+jetCorrector_L1Data        = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet'] )
+jetCorrector_L1L2L3MC      = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+jetCorrector_L1L2L3Data    = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+jetCorrector_L1L2L3ResData = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
 
 if args.small: args.plot_directory += "_small"
 #
