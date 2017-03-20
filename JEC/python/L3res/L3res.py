@@ -9,7 +9,7 @@ ROOT.gROOT.SetBatch(True)
 import itertools
 import os
 
-from math                                import sqrt, cos, sin, pi
+from math                                import sqrt, cos, sin, pi, atan2
 from RootTools.core.standard             import *
 from JetMET.tools.user                   import plot_directory
 from JetMET.tools.helpers                import deltaPhi, deltaR
@@ -22,7 +22,7 @@ from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging")
-argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?', )
+argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?' )#, default = True)
 argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res')
 args = argParser.parse_args()
 
@@ -47,14 +47,14 @@ if args.small: args.plot_directory += "_small"
 # Make samples, will be searched for in the postProcessing directory
 #
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v36/dilepTiny/"
+postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Summer16_mAODv2_postProcessed import *
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v36/dilepTiny/"
+postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
 selection       = 'ptll10-btb-njet1p'
-selectionString = 'dl_pt>10&&cos(dl_phi-JetGood_phi[0])<-0.5&&nJetGood>=1'
+selectionString = 'dl_pt>10&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1'
 
 #
 # Text on the plots
@@ -89,7 +89,7 @@ def draw1DPlots(plots, mode, dataMCScale):
       )
 
 #Formatting for 1D profiles
-def draw1DProfiles(plots, mode, dataMCScale):
+def draw1DProfiles(plots, mode, dataMCScale, logX = False):
   for log in [False, True]:
     plot_directory_ = os.path.join(plot_directory, args.plot_directory, mode + ("_log" if log else ""), selection)
     for plot in plots:
@@ -98,8 +98,8 @@ def draw1DProfiles(plots, mode, dataMCScale):
       plotting.draw(plot,
         plot_directory = plot_directory_,
         ratio = {'yRange':(0.8,1.2)},
-        logX = True, logY = log, sorting = True,
-        yRange = (0.03, "auto") if log else (0.61, 1.41),
+        logX = 'profile_pt' in plot.name, logY = log, sorting = True,
+        #yRange = (0.03, "auto") if log else (0.61, 1.41),
         scaling = {},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects = drawObjects( dataMCScale , lumi_scale )
@@ -131,24 +131,64 @@ jetMCVars = [ s.split('/')[0] for s in jetMCBranches]
 
 jetVars += ['rawPt']
 
-nan_jet = {key:float('nan') for key in jetVars}
+
+corr_levels = ['raw', 'corr'] #FIXME
+
+nan_jet = {key:float('nan') for key in jetVars + ['pt_%s'%corr_level for corr_level in corr_levels]}
 
 def makeL3ResObservables( event, sample ):
-    good_jets = getJets( event, jetColl="JetGood", jetVars = jetVars)
+    good_jets = filter( lambda j:j['pt']>20, getJets( event, jetColl="JetGood", jetVars = jetVars) )
 
+    for j in good_jets:
+        j['pt_raw']  = j['rawPt'] #FIXME
+        j['pt_corr'] = j['pt']
+
+    # compute type-1 MET shifts for chs met
+    type1_met_shifts = \
+        { corr_level: 
+                {'px' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*sin(j['phi']) for j in good_jets) } 
+          for corr_level in corr_levels }
+    
     # leading jet
-    event.leading_jet =  good_jets[0]
+    event.leading_jet    =  good_jets[0]
     # subleading jet
     event.subleading_jet = good_jets[1] if len(good_jets)>=2 else nan_jet
-    event.alpha = event.subleading_jet['rawPt'] / event.dl_pt
 
-    event.r_ptbal = event.leading_jet['rawPt'] / event.dl_pt
-    event.r_mpf   = 1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt
-    
+    # alpha
+    event.alpha = event.subleading_jet['pt_corr'] / event.dl_pt #FIXME
+
+    # PT-bal
+    for corr_level in corr_levels:
+
+        setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
+
+        chs_MEx_corr = event.met_chsPt*cos(event.met_chsPhi) + type1_met_shifts[corr_level]['px']
+        chs_MEy_corr = event.met_chsPt*sin(event.met_chsPhi) + type1_met_shifts[corr_level]['py']
+
+        chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
+        chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
+        setattr( event, "met_chsPt_type1_%s"%corr_level,  chs_MEt_corr )
+        setattr( event, "met_chsPhi_type1_%s"%corr_level, chs_MEphi_corr )
+
+        # MPF 
+        setattr( event, "r_mpf_%s"%corr_level,  1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt )
+
 
 sequence.append( makeL3ResObservables )
 
 log_pt_thresholds = [10**(x/10.) for x in range(11,36)]
+
+def att_getter( arg, key = None):
+    if key is None:
+        def _f( event, sample ):
+            return getattr( event, arg )
+        return _f
+    else:
+        def _f( event, sample ):
+            return getattr( event, arg )[key]
+        return _f
+
 
 z_window = 10
 def getLeptonSelection( mode ):
@@ -217,50 +257,35 @@ for index, mode in enumerate(allModes):
     binning=[3, 0, 3],
   ))
 
-  plots.append(Plot(
-    texX = 'p_{T}(leading jet) (GeV)', texY = 'Number of Events / 30 GeV',
-    name = 'jet1_pt', attribute = lambda event, sample: event.JetGood_pt[0],
-    binning=[600/30,0,600],
-  ))
-
   plots.append( 
     Plot(
+    name = 'jet1_eta', 
     texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
-    name = 'jet1_eta', attribute = lambda event, sample: event.JetGood_eta[0],
+    attribute = lambda event, sample: event.leading_jet['eta'],
     binning=[104,-5.2,5.2],
-  ))
-
-  plots.append(Plot(
-    texX = 'p_{T}(subleading jet) (GeV)', texY = 'Number of Events / 30 GeV',
-    name = 'jet1_pt', attribute = lambda event, sample: event.JetGood_pt[1],
-    binning=[600/30,0,600],
   ))
 
   plots.append( 
     Plot(
+    name = 'jet2_eta', 
     texX = '#eta(subleading jet) (GeV)', texY = 'Number of Events',
-    name = 'jet1_eta', attribute = lambda event, sample: event.JetGood_eta[1],
+    attribute = lambda event, sample: event.subleading_jet['eta'],
     binning=[104,-5.2,5.2],
   ))
 
   plots.append( 
     Plot(
-    texX = '#eta(subleading jet) (GeV)', texY = 'Number of Events',
-    name = 'jet1_eta', attribute = lambda event, sample: event.JetGood_eta[1],
-    binning=[104,-5.2,5.2],
-  ))
-
-  plots.append( 
-    Plot(
+    name = 'alpha', 
     texX = '#alpha', texY = 'Number of Events',
-    name = 'alpha', attribute = lambda event, sample: event.alpha,
+    attribute = lambda event, sample: event.alpha,
     binning=[50,0,1],
   ))
 
   plots.append( 
     Plot(
+    name = 'dRj1j2', 
     texX = '#Delta R(j_{1}, j_{2})', texY = 'Number of Events',
-    name = 'dRj1j2', attribute = lambda event, sample: deltaR( event.leading_jet, event.subleading_jet),
+    attribute = lambda event, sample: deltaR( event.leading_jet, event.subleading_jet),
     binning=[60,0,6],
   ))
 
@@ -295,8 +320,9 @@ for index, mode in enumerate(allModes):
   ))
 
   plots.append(Plot(
+      name = 'dl_eta', 
       texX = '#eta(ll) ', texY = 'Number of Events',
-      name = 'dl_eta', attribute = lambda event, sample: event.dl_eta, 
+      attribute = lambda event, sample: event.dl_eta, 
       read_variables = ['dl_eta/F'],
       binning=[52,-5.2,5.2],
   ))
@@ -307,46 +333,132 @@ for index, mode in enumerate(allModes):
     binning=[10,-pi,pi],
   ))
 
-  plots.append(Plot(
-      texX = 'chs-E_{T}^{miss} (GeV)', texY = 'Number of Events / 20 GeV',
-      attribute = TreeVariable.fromString( "met_chsPt/F" ),
-      binning=[400/20,0,400],
-  ))
-
-  plots.append(Plot(
-      name = "R_ptbal",
-      texX = 'R_{pt-bal}', texY = 'Number of Events',
-      attribute = lambda event, sample: event.r_ptbal,
-      binning=[100,0,2],
-  ))
-  plots.append(Plot(
-      name = "R_mpf",
-      texX = 'R_{MPF}', texY = 'Number of Events',
-      attribute = lambda event, sample: event.r_mpf,
-      binning=[100,0,2],
-  ))
-
   profiles1D.append(Plot(
-    name = 'r_ptbal_profile_eta', texX = '#eta (jet)', texY = 'R_{pt-bal}',
+    name = 'dl_mass_profile_dl_pt', texX = 'p_{T}(ll) (GeV)', texY = 'm(ll) (GeV)',
     histo_class = ROOT.TProfile,
     stack = stack_profile,
     attribute = (
         lambda event, sample: event.dl_pt,
-        lambda event, sample: event.r_ptbal,
+        lambda event, sample: event.dl_mass,
     ),
     binning = Binning.fromThresholds(log_pt_thresholds),
   ))
 
-  profiles1D.append(Plot(
-    name = 'r_mpf_profile_eta', texX = '#eta (jet)', texY = 'R_{MPF}',
-    histo_class = ROOT.TProfile,
-    stack = stack_profile,
-    attribute = (
-        lambda event, sample: event.dl_pt,
-        lambda event, sample: event.r_mpf,
-    ),
-    binning = Binning.fromThresholds(log_pt_thresholds),
-  ))
+  for corr_level in corr_levels: 
+
+      plots.append(Plot(
+        name = 'jet1_pt_%s'%corr_level, 
+        texX = 'p_{T}(leading %s jet) (GeV)'%corr_level, texY = 'Number of Events / 30 GeV',
+        attribute = att_getter( "leading_jet", 'pt_%s'%corr_level ),
+        binning=[600/30,0,600],
+      ))
+
+      plots.append(Plot(
+        name = 'jet2_pt_%s'%corr_level, 
+        texX = 'p_{T}(subleading %s jet) (GeV)'%corr_level, texY = 'Number of Events / 30 GeV',
+        attribute = att_getter( "subleading_jet", 'pt_%s'%corr_level ),
+        binning=[600/30,0,600],
+      ))
+
+      plots.append(Plot(
+          name = "chsMET_%s" %corr_level,
+          texX = 'chs-E_{T}^{miss} (GeV)', texY = 'Number of Events / 20 GeV',
+          attribute = att_getter( "met_chsPt_type1_%s"%corr_level ),
+          binning=[400/20,0,400],
+      ))
+
+      plots.append(Plot(
+          name = "R_ptbal_%s"%corr_level,
+          texX = '%s R_{pt-bal}'%corr_level, texY = 'Number of Events',
+          attribute = att_getter( "r_ptbal_%s"%corr_level ),
+          binning=[100,0,3],
+      ))
+
+      plots.append(Plot(
+          name = "R_mpf_%s"%corr_level,
+          texX = '%s R_{MPF}'%corr_level, texY = 'Number of Events',
+          attribute = att_getter( "r_mpf_%s"%corr_level ),
+          binning=[100,0,3],
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_ptbal_%s_profile_pt'%corr_level, 
+        texX = '%s p_{T}(jet) (GeV)'%corr_level, 
+        texY = '%s R_{pt-bal}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "leading_jet", 'pt_%s'%corr_level ),
+            att_getter( "r_ptbal_%s"%corr_level ),
+        ),
+        binning = Binning.fromThresholds(log_pt_thresholds),
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_mpf_%s_profile_pt'%corr_level, 
+        texX = '%s p_{T}(jet) (GeV)'%corr_level, 
+        texY = '%s R_{mpf}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "leading_jet", 'pt_%s'%corr_level ),
+            att_getter( "r_mpf_%s"%corr_level ),
+        ),
+        binning = Binning.fromThresholds(log_pt_thresholds),
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_ptbal_%s_profile_eta'%corr_level, 
+        texX = '#eta (jet)', 
+        texY = '%s R_{pt-bal}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "leading_jet", 'pt_%s'%corr_level ),
+            att_getter( "r_ptbal_%s"%corr_level ),
+        ),
+        binning = [52,-5.2,5.2],
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_mpf_%s_profile_eta'%corr_level, 
+        texX = '#eta (jet)', 
+        texY = '%s R_{pt-bal}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "leading_jet", 'eta' ),
+            att_getter( "r_mpf_%s"%corr_level ),
+        ),
+        binning = [52,-5.2,5.2],
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_ptbal_%s_profile_nvtx'%corr_level, 
+        texX = 'vertex multiplicity', 
+        texY = '%s R_{pt-bal}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "nVert" ),
+            att_getter( "r_ptbal_%s"%corr_level ),
+        ),
+        binning = [50,0,50],
+      ))
+
+      profiles1D.append(Plot(
+        name = 'r_mpf_%s_profile_nvtx'%corr_level, 
+        texX = 'vertex multiplicity', 
+        texY = '%s R_{pt-bal}'%corr_level,
+        histo_class = ROOT.TProfile,
+        stack = stack_profile,
+        attribute = (
+            att_getter( "nVert" ),
+            att_getter( "r_mpf_%s"%corr_level ),
+        ),
+        binning = [50,0,50],
+      ))
+
 
   plotting.fill( plots + profiles1D , read_variables = read_variables, sequence = sequence )
 
