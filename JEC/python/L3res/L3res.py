@@ -34,13 +34,25 @@ import RootTools.core.logger as logger_rt
 logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
+# JEC on the fly, tarball configuration
+from JetMET.JetCorrector.JetCorrector import JetCorrector, correction_levels_data, correction_levels_mc
 
-## JEC on the fly
-from JetMET.JetCorrector.jetCorrectors_Summer16 import jetCorrector_data, jetCorrector_mc
-#
+# config
+Summer16_23Sep2016_DATA = \
+[(1, 'Summer16_23Sep2016BCDV5_DATA'),
+ (276831, 'Summer16_23Sep2016EFV5_DATA'),
+ (278802, 'Summer16_23Sep2016GV5_DATA'),
+ (280919, 'Summer16_23Sep2016HV5_DATA')]
+
+Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016V5_MC') ]
+
+correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual' ]
+correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
+
 ## pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
-jetCorrector_L1L2L3MC      = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-jetCorrector_L1L2L3Data    = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
+
+jetCorrector_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
+jetCorrector_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC, correctionLevels = correction_levels_mc )
 
 if args.small: args.plot_directory += "_small"
 #
@@ -54,7 +66,7 @@ postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
 selection       = 'ptll10-btb-njet1p'
-selectionString = 'dl_pt>10&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1'
+selectionString = 'dl_pt>10&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
 
 #
 # Text on the plots
@@ -97,9 +109,9 @@ def draw1DProfiles(plots, mode, dataMCScale, logX = False):
 
       plotting.draw(plot,
         plot_directory = plot_directory_,
-        ratio = {'yRange':(0.8,1.2)},
+        ratio = {'yRange': (0.8,1.2) },
         logX = 'profile_pt' in plot.name, logY = log, sorting = True,
-        #yRange = (0.03, "auto") if log else (0.61, 1.41),
+        yRange =  (85,95) if plot.name.startswith('dl_mass') else (0.3, 1.5),# if log else (0.61, 1.41),
         scaling = {},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects = drawObjects( dataMCScale , lumi_scale )
@@ -107,7 +119,7 @@ def draw1DProfiles(plots, mode, dataMCScale, logX = False):
 #
 # Read variables and sequences
 #
-read_variables = ["run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l2_eta/F", "l2_phi/F", 
+read_variables = ["run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l1_dxy/F", "l2_eta/F", "l2_phi/F", "l2_dxy/F", "rho/F", 
                   "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", 
                   "dl_mass/F", "dl_eta/F", "dl_pt/F","dl_phi/F",
                   "met_chsPt/F", "met_chsPhi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", 'nVert/I']
@@ -131,8 +143,8 @@ jetMCVars = [ s.split('/')[0] for s in jetMCBranches]
 
 jetVars += ['rawPt']
 
-
-corr_levels = ['raw', 'corr'] #FIXME
+# List all correction levels
+corr_levels = ['raw', 'corr'] 
 
 nan_jet = {key:float('nan') for key in jetVars + ['pt_%s'%corr_level for corr_level in corr_levels]}
 
@@ -140,8 +152,13 @@ def makeL3ResObservables( event, sample ):
     good_jets = filter( lambda j:j['pt']>20, getJets( event, jetColl="JetGood", jetVars = jetVars) )
 
     for j in good_jets:
-        j['pt_raw']  = j['rawPt'] #FIXME
-        j['pt_corr'] = j['pt']
+        # Raw correction level
+        j['pt_raw']  = j['rawPt']
+        # 'Corr' correction level: L1L2L3 L2res
+        if sample.isData:
+            j['pt_corr'] =  jetCorrector_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
+        else:
+            j['pt_corr'] =  jetCorrector_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
 
     # compute type-1 MET shifts for chs met
     type1_met_shifts = \
@@ -155,22 +172,26 @@ def makeL3ResObservables( event, sample ):
     # subleading jet
     event.subleading_jet = good_jets[1] if len(good_jets)>=2 else nan_jet
 
-    # alpha
+    # alpha 
     event.alpha = event.subleading_jet['pt_corr'] / event.dl_pt #FIXME
 
-    # PT-bal
+    # alpha cut flag
+    event.alpha_passed = ( event.nJetGood == 1 ) or (event.alpha < 0.3)
+
     for corr_level in corr_levels:
 
-        setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
-
+        # chs MET 
         chs_MEx_corr = event.met_chsPt*cos(event.met_chsPhi) + type1_met_shifts[corr_level]['px']
         chs_MEy_corr = event.met_chsPt*sin(event.met_chsPhi) + type1_met_shifts[corr_level]['py']
 
         chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
         chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
+
         setattr( event, "met_chsPt_type1_%s"%corr_level,  chs_MEt_corr )
         setattr( event, "met_chsPhi_type1_%s"%corr_level, chs_MEphi_corr )
 
+        # PT-bal
+        setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
         # MPF 
         setattr( event, "r_mpf_%s"%corr_level,  1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt )
 
@@ -179,6 +200,7 @@ sequence.append( makeL3ResObservables )
 
 log_pt_thresholds = [10**(x/10.) for x in range(11,36)]
 
+# Functor to retrieve attributes from the event object (Inline defined lambdas are wrongly bound)
 def att_getter( arg, key = None):
     if key is None:
         def _f( event, sample ):
@@ -189,6 +211,18 @@ def att_getter( arg, key = None):
             return getattr( event, arg )[key]
         return _f
 
+def make_weight( dl_pt_bin = ( -1, -1), abs_eta_bin = None, require_alpha_passed = True):
+
+    def _w( event, sample ):
+        return \
+            ( (not require_alpha_passed ) or event.alpha_passed ) \
+            and  ( ( dl_pt_bin[0]<0 ) or (event.dl_pt > dl_pt_bin[0]) ) \
+            and  ( ( dl_pt_bin[1]<0 ) or (event.dl_pt < dl_pt_bin[1]) ) \
+            and  ( ( abs_eta_bin is None ) or (abs(event.leading_jet['eta']) >= abs_eta_bin[0] and abs(event.leading_jet['eta']) < abs_eta_bin[1]) ) 
+    return _w
+
+dl_pt_bins = [ (-1,-1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 )]
+abs_eta_bins = [ (0, 1.3), (1.3, 2.5), (2.5, 3), (3, 5 )]
 
 z_window = 10
 def getLeptonSelection( mode ):
@@ -203,7 +237,7 @@ weight_data = lambda event, sample: event.weight
 #
 yields     = {}
 allPlots   = {}
-allModes   = ['mumu']#,'ee']
+allModes   = ['mumu','ee']
 for index, mode in enumerate(allModes):
   yields[mode] = {}
   if   mode=="mumu": data = DoubleMuon_Run2016_backup
@@ -218,37 +252,41 @@ for index, mode in enumerate(allModes):
 
   lumi_scale          = data.lumi/1000
 
-  #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ, multiBoson]
-  #DY_sample = DY
-  DY_sample = DY_HT_LO
+  DY_sample     = DY_HT_LO
   TTJets_sample = Top
-  other_mc_samples = [TTZ_LO, TTXNoZ, multiBoson]
-  other_mc  = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = other_mc_samples, color = ROOT.kMagenta )
-  mc        = [DY_sample, TTJets_sample, other_mc]
-  all_mc   = Sample.combine( name = "all_mc",   texName = "simulation", samples = [DY_sample, Top_pow, TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kBlue )
-  all_mc.style = styles.lineStyle( all_mc.color, errors = True )    
 
-  for sample in mc: sample.style = styles.fillStyle(sample.color)
+  other_mc_samples  = [TTZ_LO, TTXNoZ, multiBoson]
+  all_mc_samples    = [DY_sample, TTJets_sample] + other_mc_samples
 
-  for sample in mc:
+  other_mc          = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = other_mc_samples, color = ROOT.kMagenta )
+  all_mc_combined   = Sample.combine( name = "all_mc_combined",   texName = "simulation", samples = all_mc_samples , color = ROOT.kBlue )
+  all_mc_combined.style = styles.lineStyle( all_mc_combined.color, errors = True )    
+
+
+  for sample in all_mc_samples: sample.style = styles.fillStyle(sample.color)
+
+  for sample in all_mc_samples + [other_mc, all_mc_combined]:
     sample.scale          = lumi_scale
     sample.read_variables = ['reweightDilepTriggerBackup/F','reweightLeptonSF/F','reweightPU36fb/F', 'nTrueInt/F']
-    #sample.read_variables +=["JetGood[%s]"%( ",".join( jetMCBranches ) )]
-    #sample.weight         = lambda event, sample: event.reweightLeptonSF*event.reweightLeptonHIPSF*event.reweightDilepTriggerBackup*nTrueInt27fb_puRW(event.nTrueInt)*event.reweightBTag_SF
     sample.weight         = weight_mc 
     sample.setSelectionString([getFilterCut(isData=False),  getLeptonSelection(mode)])
 
-  stack          = Stack(mc,  data )
-  stack_profile  = Stack([all_mc], data )
+  mc = [DY_sample, TTJets_sample, other_mc]
+  stack          = Stack( mc,  data )
+  stack_profile  = Stack( [all_mc_combined], data )
 
   if args.small:
         for sample in stack.samples + stack_profile.samples:
             sample.reduceFiles( to = 1 )
 
   # Use some defaults
-  Plot.setDefaults(stack = stack, weight = None,   selectionString = selectionString, addOverFlowBin='upper')
+  Plot.setDefaults( stack = stack, \
+                    weight = lambda event, sample: event.alpha_passed,   
+                    selectionString = selectionString, 
+                    addOverFlowBin = None
+    )
   
-  plots                 = []
+  plots      = []
   profiles1D = []
 
   plots.append(Plot(
@@ -333,8 +371,68 @@ for index, mode in enumerate(allModes):
     binning=[10,-pi,pi],
   ))
 
+  plots.append(Plot(
+    name = 'nVtxs', texX = 'vertex multiplicity', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "nVert/I" ),
+    binning=[50,0,50],
+  ))
+
+  plots.append(Plot(
+    name = 'rho', texX = 'rho', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "rho/F" ),
+    binning=[50,0,50],
+  ))
+
+  plots.append(Plot(
+    texX = 'p_{T}(l_{1}) (GeV)', texY = 'Number of Events / 15 GeV',
+    attribute = TreeVariable.fromString( "l1_pt/F" ),
+    binning=[20,0,300],
+  ))
+
+  plots.append(Plot(
+    texX = 'd_{xy}(l_{1})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l1_dxy/F" ),
+    binning=[40,-0.2,0.2],
+  ))
+
+  plots.append(Plot(
+    texX = '#eta(l_{1})', texY = 'Number of Events',
+    name = 'l1_eta', attribute = lambda event, sample: event.l1_eta, read_variables = ['l1_eta/F'],
+    binning=[60,-3,3],
+  ))
+
+  plots.append(Plot(
+    texX = '#phi(l_{1})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l1_phi/F" ),
+    binning=[10,-pi,pi],
+  ))
+
+  plots.append(Plot(
+    texX = 'p_{T}(l_{2}) (GeV)', texY = 'Number of Events / 15 GeV',
+    attribute = TreeVariable.fromString( "l2_pt/F" ),
+    binning=[20,0,300],
+  ))
+
+  plots.append(Plot(
+    texX = 'd_{xy}(l_{2})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l2_dxy/F" ),
+    binning=[40,-0.2,0.2],
+  ))
+
+  plots.append(Plot(
+    texX = '#eta(l_{2})', texY = 'Number of Events',
+    name = 'l2_eta', attribute = lambda event, sample: event.l2_eta, read_variables = ['l2_eta/F'],
+    binning=[60,-3,3],
+  ))
+
+  plots.append(Plot(
+    texX = '#phi(l_{2})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l2_phi/F" ),
+    binning=[10,-pi,pi],
+  ))
+
   profiles1D.append(Plot(
-    name = 'dl_mass_profile_dl_pt', texX = 'p_{T}(ll) (GeV)', texY = 'm(ll) (GeV)',
+    name = 'dl_mass_profile_pt', texX = 'p_{T}(ll) (GeV)', texY = 'm(ll) (GeV)',
     histo_class = ROOT.TProfile,
     stack = stack_profile,
     attribute = (
@@ -344,7 +442,7 @@ for index, mode in enumerate(allModes):
     binning = Binning.fromThresholds(log_pt_thresholds),
   ))
 
-  for corr_level in corr_levels: 
+  for corr_level in corr_levels:
 
       plots.append(Plot(
         name = 'jet1_pt_%s'%corr_level, 
@@ -367,97 +465,62 @@ for index, mode in enumerate(allModes):
           binning=[400/20,0,400],
       ))
 
-      plots.append(Plot(
-          name = "R_ptbal_%s"%corr_level,
-          texX = '%s R_{pt-bal}'%corr_level, texY = 'Number of Events',
-          attribute = att_getter( "r_ptbal_%s"%corr_level ),
-          binning=[100,0,3],
-      ))
+      for method in ['ptbal', 'mpf']: 
 
-      plots.append(Plot(
-          name = "R_mpf_%s"%corr_level,
-          texX = '%s R_{MPF}'%corr_level, texY = 'Number of Events',
-          attribute = att_getter( "r_mpf_%s"%corr_level ),
-          binning=[100,0,3],
-      ))
+          # inclusive response
+          plots.append(Plot(
+              name = "R_%s_%s"%(method, corr_level),
+              texX = '%s R_{%s}'%(corr_level, method), texY = 'Number of Events',
+              attribute = att_getter( "r_%s_%s"%(method, corr_level) ),
+              binning=[100,0,3],
+          ))
 
-      profiles1D.append(Plot(
-        name = 'r_ptbal_%s_profile_pt'%corr_level, 
-        texX = '%s p_{T}(jet) (GeV)'%corr_level, 
-        texY = '%s R_{pt-bal}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "leading_jet", 'pt_%s'%corr_level ),
-            att_getter( "r_ptbal_%s"%corr_level ),
-        ),
-        binning = Binning.fromThresholds(log_pt_thresholds),
-      ))
+          # response profile wrt nvert
+          profiles1D.append(Plot(
+            name = 'r_%s_%s_profile_nvtx'%(method, corr_level), 
+            texX = 'vertex multiplicity', 
+            texY = '%s R_{%s}'%(corr_level, method),
+            histo_class = ROOT.TProfile,
+            stack = stack_profile,
+            attribute = (
+                att_getter( "nVert" ),
+                att_getter( "r_%s_%s"%(method, corr_level) ),
+            ),
+            binning = [50,0,50],
+            weight = make_weight( dl_pt_bin = (30, -1), abs_eta_bin = (0, 1.3) ),
+          ))
 
-      profiles1D.append(Plot(
-        name = 'r_mpf_%s_profile_pt'%corr_level, 
-        texX = '%s p_{T}(jet) (GeV)'%corr_level, 
-        texY = '%s R_{mpf}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "leading_jet", 'pt_%s'%corr_level ),
-            att_getter( "r_mpf_%s"%corr_level ),
-        ),
-        binning = Binning.fromThresholds(log_pt_thresholds),
-      ))
+          # response profile vs dl_pt
+          for abs_eta_bin in abs_eta_bins:
+              profiles1D.append(Plot(
+                name = 'r_%s_%s_profile_ptll_for_eta_%3.2f_%3.2f'%( ( method, corr_level ) + abs_eta_bin ), 
+                texX = 'p_{T}(ll) (GeV)', 
+                texY = '%s R_{%s}'%(corr_level, method),
+                histo_class = ROOT.TProfile,
+                stack = stack_profile,
+                attribute = (
+                    "dl_pt",
+                    att_getter( "r_%s_%s"%(method, corr_level) ),
+                ),
+                binning = Binning.fromThresholds(log_pt_thresholds),
+                weight = make_weight( abs_eta_bin = abs_eta_bin ),
+              ))
 
-      profiles1D.append(Plot(
-        name = 'r_ptbal_%s_profile_eta'%corr_level, 
-        texX = '#eta (jet)', 
-        texY = '%s R_{pt-bal}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "leading_jet", 'pt_%s'%corr_level ),
-            att_getter( "r_ptbal_%s"%corr_level ),
-        ),
-        binning = [52,-5.2,5.2],
-      ))
-
-      profiles1D.append(Plot(
-        name = 'r_mpf_%s_profile_eta'%corr_level, 
-        texX = '#eta (jet)', 
-        texY = '%s R_{pt-bal}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "leading_jet", 'eta' ),
-            att_getter( "r_mpf_%s"%corr_level ),
-        ),
-        binning = [52,-5.2,5.2],
-      ))
-
-      profiles1D.append(Plot(
-        name = 'r_ptbal_%s_profile_nvtx'%corr_level, 
-        texX = 'vertex multiplicity', 
-        texY = '%s R_{pt-bal}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "nVert" ),
-            att_getter( "r_ptbal_%s"%corr_level ),
-        ),
-        binning = [50,0,50],
-      ))
-
-      profiles1D.append(Plot(
-        name = 'r_mpf_%s_profile_nvtx'%corr_level, 
-        texX = 'vertex multiplicity', 
-        texY = '%s R_{pt-bal}'%corr_level,
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "nVert" ),
-            att_getter( "r_mpf_%s"%corr_level ),
-        ),
-        binning = [50,0,50],
-      ))
+          # response profile vs eta
+          for dl_pt_bin in dl_pt_bins:
+              profiles1D.append(Plot(
+                name = 'r_%s_%s_profile_jet_eta_for_dlpt_%i_%i'%( ( method, corr_level ) +  dl_pt_bin ), 
+                texX = '#eta (jet)', 
+                texY = '%s R_{%s}'%( corr_level, method),
+                histo_class = ROOT.TProfile,
+                stack = stack_profile,
+                attribute = (
+                    att_getter( "leading_jet", 'eta' ),
+                    att_getter( "r_%s_%s"%(method, corr_level) ),
+                ),
+                binning = [26,-5.2,5.2],
+                weight = make_weight( dl_pt_bin = dl_pt_bin ),
+              ))
 
 
   plotting.fill( plots + profiles1D , read_variables = read_variables, sequence = sequence )
