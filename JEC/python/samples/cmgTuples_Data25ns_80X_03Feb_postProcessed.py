@@ -30,6 +30,8 @@ def merge(pd, totalRunName, listOfRuns):
 for pd in ['DoubleEG','DoubleMuon','MuonEG']:
   merge(pd, 'Run2016BCD',    ['Run2016B_v2', 'Run2016C', 'Run2016D'])
   merge(pd, 'Run2016BCDEFG', ['Run2016BCD', 'Run2016E', 'Run2016F', 'Run2016G'])
+  merge(pd, 'Run2016EF', ['Run2016E', 'Run2016F'])  #E Fearly
+  merge(pd, 'Run2016GH', ['Run2016F', 'Run2016G', 'Run2016H_v2', 'Run2016H_v3']) #Flate+GH
   merge(pd, 'Run2016',       ['Run2016BCDEFG', 'Run2016H_v2', 'Run2016H_v3'])
 
 for key in dirs:
@@ -48,6 +50,15 @@ MuonEG_Run2016BCD_backup        = getSample('MuonEG',     'Run2016BCD',    (5.74
 DoubleEG_Run2016BCDEFG_backup   = getSample('DoubleEG',   'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
 DoubleMuon_Run2016BCDEFG_backup = getSample('DoubleMuon', 'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
 MuonEG_Run2016BCDEFG_backup     = getSample('MuonEG',     'Run2016BCDEFG', (5.743+2.573+4.248+4.009+3.101+7.540)*1000)
+
+#Fearly 2.666, Flate 0.397 according to brilcalc
+DoubleEG_Run2016EF_backup   = getSample('DoubleEG',   'Run2016EF', (4.009+3.101-0.397)*1000)
+DoubleMuon_Run2016EF_backup = getSample('DoubleMuon', 'Run2016EF', (4.009+3.101-0.397)*1000)
+MuonEG_Run2016EF_backup     = getSample('MuonEG',     'Run2016EF', (4.009+3.101-0.397)*1000)
+
+DoubleEG_Run2016GH_backup   = getSample('DoubleEG',   'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
+DoubleMuon_Run2016GH_backup = getSample('DoubleMuon', 'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
+MuonEG_Run2016GH_backup     = getSample('MuonEG',     'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
 
 DoubleEG_Run2016_backup         = getSample('DoubleEG',   'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
 DoubleMuon_Run2016_backup       = getSample('DoubleMuon', 'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
