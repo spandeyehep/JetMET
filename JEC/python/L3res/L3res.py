@@ -27,7 +27,7 @@ argParser.add_argument('--small',                                   action='stor
 argParser.add_argument('--version',            action='store',      default='V5',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
 argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'] )
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res' )
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_DYnJets' )
 args = argParser.parse_args()
 
 #
@@ -69,8 +69,8 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-selection       = 'ptll10-btb-njet1p'
-selectionString = 'dl_pt>10&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
+selection       = 'ptll30-btb-njet1p'
+selectionString = 'dl_pt>30&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
 
 #
 # Text on the plots
@@ -87,7 +87,7 @@ def drawObjects( dataMCScale, lumi_scale ):
     ]
     return [tex.DrawLatex(*l) for l in lines] 
 
-plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.mode, args.era )
+plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.era )
 
 # Formatting for 1D plots
 def draw1DPlots(plots, mode, dataMCScale):
@@ -98,10 +98,10 @@ def draw1DPlots(plots, mode, dataMCScale):
       
       plotting.draw(plot,
         plot_directory = plot_directory_,
-        ratio = {'yRange':(0.6,1.4)},
+        ratio = {'yRange':(0.6,1.4)} if len(plot.stack)==2 else None,
         logX = False, logY = log, sorting = True,
         yRange = (0.03, "auto") if log else (0.001, "auto"),
-        scaling = {0:1},
+        #scaling = {0:1},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects = drawObjects( dataMCScale , lumi_scale )
       )
@@ -312,7 +312,8 @@ data.weight         = weight_data
 
 lumi_scale          = data.lumi/1000
 
-DY_sample     = DY_HT_LO
+#DY_sample     = DY_HT_LO
+DY_sample     = DYnJets
 TTJets_sample = Top
 
 other_mc_samples  = [TTZ_LO, TTXNoZ, multiBoson]
@@ -403,6 +404,13 @@ binning=[8,0,8],
 plots.append(Plot(
 texX = 'H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
 attribute = TreeVariable.fromString( "ht/F" ),
+binning=[500/25,0,600],
+))
+
+plots.append(Plot(
+texX = 'gen-H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
+attribute = TreeVariable.fromString( "lheHTIncoming/F" ),
+stack = Stack( mc ),
 binning=[500/25,0,600],
 ))
 
