@@ -23,11 +23,12 @@ from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
-argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?' )#, default = True)
+argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?' , default = True)
 argParser.add_argument('--version',            action='store',      default='V5',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
-argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'] )
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_DYnJets' )
+argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
+argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'], help="Run era?")
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_RC',  help="subdirectory for plots")
 args = argParser.parse_args()
 
 #
@@ -55,8 +56,15 @@ correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 
 ## pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
 
-jetCorrector_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
-jetCorrector_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
+#L1L2L3 - L1RC scheme: Mikko on 14th May, 2014
+#MEx += (px(raw) - O(RC)) - py(L1FJ,L2L3)
+#MEx += (pT(raw) * L1RC(ptraw) - pT(L1FJ,L2L3))*cos(phi)
+#MEx += pT(raw) * (L1RC(ptraw) - L1FJ(raw)*L2L3 )*cos(phi)
+
+jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
+jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
+jetCorrector_rc_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1RC'] )
+jetCorrector_rc_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1RC'] )
 
 if args.small: args.plot_directory += "_small"
 #
@@ -69,8 +77,8 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-selection       = 'ptll30-btb-njet1p'
-selectionString = 'dl_pt>30&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
+selection       = 'ptll30-njet1p'
+selectionString = 'dl_pt>30&&Sum$(JetGood_pt>10 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
 
 #
 # Text on the plots
@@ -87,7 +95,7 @@ def drawObjects( dataMCScale, lumi_scale ):
     ]
     return [tex.DrawLatex(*l) for l in lines] 
 
-plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.era )
+plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.dy, args.era )
 
 # Formatting for 1D plots
 def draw1DPlots(plots, mode, dataMCScale):
@@ -101,13 +109,13 @@ def draw1DPlots(plots, mode, dataMCScale):
         ratio = {'yRange':(0.6,1.4)} if len(plot.stack)==2 else None,
         logX = False, logY = log, sorting = True,
         yRange = (0.03, "auto") if log else (0.001, "auto"),
-        #scaling = {0:1},
+        scaling = {0:1} if len(plot.stack)==2 else {},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects = drawObjects( dataMCScale , lumi_scale )
       )
 
 #Formatting for 1D profiles
-def draw1DProfiles(plots, mode, dataMCScale, logX = False):
+def draw1DProfiles(plots, mode, dataMCScale):
   for log in [False, True]:
     plot_directory_ = os.path.join(plot_directory, mode + ("_log" if log else ""), selection)
     for plot in plots:
@@ -123,6 +131,23 @@ def draw1DProfiles(plots, mode, dataMCScale, logX = False):
         yRange =  (85,95) if plot.name.startswith('dl_mass') else (0.3, 1.5),# if log else (0.61, 1.41),
         scaling = {},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
+        drawObjects = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects, 
+      )
+
+#Formatting for 2D plots
+def draw2DPlots(plots, mode, dataMCScale):
+  for log in [False, True]:
+    plot_directory_ = os.path.join(plot_directory, mode + ("_log" if log else ""), selection)
+    for plot in plots:
+
+      p_drawObjects = map( lambda l:tex.DrawLatex(*l), getattr(plot, "drawObjects", [] ) )
+
+      plotting.draw2D(plot,
+        plot_directory = plot_directory_,
+        logX = False, 
+        #logX = '_vs_dl_pt' in plot.name, 
+        logY = False, 
+        #yRange =  (85,95) if plot.name.startswith('dl_mass') else (0.3, 1.5),# if log else (0.61, 1.41),
         drawObjects = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects, 
       )
 
@@ -173,39 +198,48 @@ jetVars += ['rawPt']
 # List all correction levels
 #corr_levels = ['raw', 'V5'] 
 corr_levels = [ args.version ] 
-pt_corr = 'pt_%s'%args.version
+pt_corr    = 'pt_%s'%args.version
+pt_corr_rc = 'pt_%s_rc'%args.version
 
-nan_jet = {key:float('nan') for key in jetVars + ['pt_%s'%corr_level for corr_level in corr_levels]}
+null_jet = {key:float('nan') for key in jetVars}
+null_jet['pt'] = 0
+null_jet.update( { 'pt_%s'%corr_level:0. for corr_level in corr_levels} )
 
 def makeL3ResObservables( event, sample ):
-    good_jets = filter( lambda j:j['pt']>20, getJets( event, jetColl="JetGood", jetVars = jetVars) )
+    #good_jets = filter( lambda j:j['pt']>=0, getJets( event, jetColl="JetGood", jetVars = jetVars) )
+    good_jets = getJets( event, jetColl="JetGood", jetVars = jetVars)
 
     for j in good_jets:
         # Raw correction level
         j['pt_raw']  = j['rawPt']
         # 'Corr' correction level: L1L2L3 L2res
         if sample.isData:
-            j[pt_corr] =  jetCorrector_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
+            jet_corr_factor    =  jetCorrector_data.   correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
+            jet_corr_factor_rc =  jetCorrector_rc_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
         else:
-            j[pt_corr] =  jetCorrector_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
+            jet_corr_factor    =  jetCorrector_mc.     correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
+            jet_corr_factor_rc =  jetCorrector_rc_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
 
-    # compute type-1 MET shifts for chs met
+        j[pt_corr]    =  jet_corr_factor * j['rawPt'] 
+        j[pt_corr_rc] =  jet_corr_factor_rc * j['rawPt'] 
+
+
+    # compute type-1 MET shifts for chs met L1L2L3 - L1RC
     type1_met_shifts = \
         { corr_level: 
-                {'px' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*cos(j['phi']) for j in good_jets), 
-                 'py' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*sin(j['phi']) for j in good_jets) } 
+                {'px' :sum( ( j[pt_corr_rc] - j[pt_corr] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j[pt_corr_rc] - j[pt_corr] )*sin(j['phi']) for j in good_jets) } 
           for corr_level in corr_levels }
     
     # leading jet
     event.leading_jet    =  good_jets[0]
     # subleading jet
-    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else nan_jet
+    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else null_jet
 
     # alpha 
-    event.alpha = event.subleading_jet[pt_corr] / event.dl_pt #FIXME
-
+    event.alpha = event.subleading_jet[pt_corr] / event.dl_pt
     # alpha cut flag
-    event.alpha_passed = ( event.nJetGood == 1 ) or (event.alpha < 0.3)
+    event.alpha_passed = ( event.alpha < 0.3)
 
     for corr_level in corr_levels:
 
@@ -312,15 +346,22 @@ data.weight         = weight_data
 
 lumi_scale          = data.lumi/1000
 
-#DY_sample     = DY_HT_LO
-DY_sample     = DYnJets
+if args.dy == 'DY_HT_LO':
+    DY_sample      = DY_HT_LO
+    dy_legend_text = "DY(HT)"
+elif args.dy == 'DYnJets':
+    DY_sample      = DYnJets
+    dy_legend_text = "DY(Njet)"
+
+DY_sample.legendText = dy_legend_text
+
 TTJets_sample = Top
 
 other_mc_samples  = [TTZ_LO, TTXNoZ, multiBoson]
 all_mc_samples    = [DY_sample, TTJets_sample] + other_mc_samples
 
 other_mc          = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = other_mc_samples, color = ROOT.kMagenta )
-all_mc_combined   = Sample.combine( name = "all_mc_combined",   texName = "simulation", samples = all_mc_samples , color = ROOT.kBlue )
+all_mc_combined   = Sample.combine( name = "all_mc_combined",   texName = "%s + rest"%dy_legend_text, samples = all_mc_samples , color = ROOT.kBlue )
 all_mc_combined.style = styles.lineStyle( all_mc_combined.color, errors = True )    
 
 
@@ -350,6 +391,7 @@ Plot.setDefaults( stack = stack, \
 
 plots      = []
 profiles1D = []
+plots2D    = []
 
 plots.append(Plot(
 name = 'yield', texX = 'yield', texY = 'Number of Events',
@@ -511,6 +553,34 @@ attribute = (
 binning = Binning.fromThresholds(log_pt_thresholds),
 ))
 
+plots2D.append(Plot2D(
+name = 'alpha_vs_dl_pt_data', 
+texX = 'p_{T}(ll) (GeV)', 
+texY = '#alpha',
+stack = Stack(data),
+selectionString = selectionString, 
+attribute = (
+    lambda event, sample: event.dl_pt,
+    lambda event, sample: event.alpha,
+),
+binning=[50,0,200,50,0,1],
+weight = None,
+))
+
+plots2D.append(Plot2D(
+name = 'alpha_vs_dl_pt_mc', 
+texX = 'p_{T}(ll) (GeV)', 
+texY = '#alpha',
+stack = Stack(mc),
+selectionString = selectionString, 
+attribute = (
+    lambda event, sample: event.dl_pt,
+    lambda event, sample: event.alpha,
+),
+binning=[50,0,200,50,0,1],
+weight = None,
+))
+
 for corr_level in corr_levels:
 
   plots.append(Plot(
@@ -594,7 +664,7 @@ for corr_level in corr_levels:
           profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(dl_pt_bin))]
 
 
-plotting.fill( plots + profiles1D , read_variables = read_variables, sequence = sequence )
+plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence )
 
 # Get normalization yields from yield histogram
 for plot in plots:
@@ -609,5 +679,6 @@ for plot in plots:
 yields[args.mode]["MC"] = sum(yields[args.mode][s.name] for s in mc)
 dataMCScale        = yields[args.mode]["data"]/yields[args.mode]["MC"] if yields[args.mode]["MC"] != 0 else float('nan')
 
-draw1DPlots( plots, args.mode, dataMCScale )
+draw1DPlots(    plots,      args.mode, dataMCScale )
 draw1DProfiles( profiles1D, args.mode, dataMCScale )
+draw2DPlots(    plots2D,    args.mode, dataMCScale )
