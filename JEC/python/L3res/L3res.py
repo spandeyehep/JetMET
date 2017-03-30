@@ -23,12 +23,14 @@ from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
-argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?' , default = True)
-argParser.add_argument('--version',            action='store',      default='V5',            help='JEC version as postfix to 23Sep2016' )
+argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')
+argParser.add_argument('--noRes'      ,                             action='store_true',     help='skip application of residual JEC.')
+argParser.add_argument('--noL1'       ,                             action='store_true',     help='skip application of L1 JEC.')
+argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
 argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
 argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'], help="Run era?")
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_RC',  help="subdirectory for plots")
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res',     help="subdirectory for plots")
 args = argParser.parse_args()
 
 #
@@ -39,8 +41,13 @@ import RootTools.core.logger as logger_rt
 logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
+# decorate plot directory
+if args.noL1:  args.plot_directory += "_noL1"
+if args.noRes: args.plot_directory += "_noRes"
+if args.small: args.plot_directory += "_small"
+
 # JEC on the fly, tarball configuration
-from JetMET.JetCorrector.JetCorrector import JetCorrector, correction_levels_data, correction_levels_mc
+from JetMET.JetCorrector.JetCorrector import JetCorrector
 
 # JetCorrector config
 Summer16_23Sep2016_DATA = \
@@ -51,7 +58,7 @@ Summer16_23Sep2016_DATA = \
 
 Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016%s_MC'%args.version) ]
 
-correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual' ]
+correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute' , 'L2L3Residual' ] if not args.noRes else [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 
 ## pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
@@ -63,10 +70,14 @@ correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 
 jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
 jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
-jetCorrector_rc_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1RC'] )
-jetCorrector_rc_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1RC'] )
 
-if args.small: args.plot_directory += "_small"
+jetCorrector_RC_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1RC'] )
+jetCorrector_RC_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1RC'] )
+
+if args.noL1:
+    jetCorrector_L1_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1FastJet'] )
+    jetCorrector_L1_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1FastJet'] )
+
 #
 # Make samples, will be searched for in the postProcessing directory
 #
@@ -199,7 +210,7 @@ jetVars += ['rawPt']
 #corr_levels = ['raw', 'V5'] 
 corr_levels = [ args.version ] 
 pt_corr    = 'pt_%s'%args.version
-pt_corr_rc = 'pt_%s_rc'%args.version
+pt_corr_RC = 'pt_%s_RC'%args.version
 
 null_jet = {key:float('nan') for key in jetVars}
 null_jet['pt'] = 0
@@ -215,20 +226,34 @@ def makeL3ResObservables( event, sample ):
         # 'Corr' correction level: L1L2L3 L2res
         if sample.isData:
             jet_corr_factor    =  jetCorrector_data.   correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
-            jet_corr_factor_rc =  jetCorrector_rc_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
+            jet_corr_factor_RC =  jetCorrector_RC_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
         else:
             jet_corr_factor    =  jetCorrector_mc.     correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
-            jet_corr_factor_rc =  jetCorrector_rc_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
-
+            jet_corr_factor_RC =  jetCorrector_RC_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
+        
+        # corrected jet
         j[pt_corr]    =  jet_corr_factor * j['rawPt'] 
-        j[pt_corr_rc] =  jet_corr_factor_rc * j['rawPt'] 
+
+        # noL1 -> divide out L1FastJet, remove 
+        if args.noL1: 
+            if sample.isData:
+                jet_corr_factor_L1 =  jetCorrector_L1_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) 
+            else: 
+                jet_corr_factor_L1 =  jetCorrector_L1_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) 
+            # noL1 -> divide out L1FastJet, remove 
+            j[pt_corr]    =  j[pt_corr]/jet_corr_factor_L1 
+            # no L1RC if 'noL1'
+            j[pt_corr_RC] =  j['rawPt'] 
+        else:
+            # L1RC 
+            j[pt_corr_RC] =  jet_corr_factor_RC * j['rawPt'] 
 
 
-    # compute type-1 MET shifts for chs met L1L2L3 - L1RC
+    # compute type-1 MET shifts for chs met L1L2L3 - L1RC (if 'noL1', then L1FastJets is divided out and L1RC is not applied )
     type1_met_shifts = \
         { corr_level: 
-                {'px' :sum( ( j[pt_corr_rc] - j[pt_corr] )*cos(j['phi']) for j in good_jets), 
-                 'py' :sum( ( j[pt_corr_rc] - j[pt_corr] )*sin(j['phi']) for j in good_jets) } 
+                {'px' :sum( ( j[pt_corr_RC] - j[pt_corr] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j[pt_corr_RC] - j[pt_corr] )*sin(j['phi']) for j in good_jets) } 
           for corr_level in corr_levels }
     
     # leading jet
@@ -257,7 +282,8 @@ def makeL3ResObservables( event, sample ):
         setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
         # MPF 
         setattr( event, "r_mpf_%s"%corr_level,  1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt )
-
+        # MPF no type-1 
+        setattr( event, "r_mpfNoType1_%s"%corr_level,  1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt )
 
 sequence.append( makeL3ResObservables )
 
@@ -284,8 +310,8 @@ def make_weight( dl_pt_bin = ( -1, -1), abs_eta_bin = None, require_alpha_passed
             and  ( ( abs_eta_bin is None ) or (abs(event.leading_jet['eta']) >= abs_eta_bin[0] and abs(event.leading_jet['eta']) < abs_eta_bin[1]) ) 
     return _w
 
-dl_pt_bins   = [ (-1,-1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 )]
-abs_eta_bins = [ (0, 1.3), (1.3, 2.5), (2.5, 3), (3, 5 )]
+dl_pt_bins   = [ (-1,-1), (30, -1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 ), (100, -1)]
+abs_eta_bins = [ (0, 0.8), (0.8, 1.3), (1.3, 1.9), (1.9, 2.5), (2.5, 3), (3,3.2), (3.2, 5 )]
 
 z_window = 10
 def getLeptonSelection( mode ):
@@ -604,7 +630,7 @@ for corr_level in corr_levels:
       binning=[400/20,0,400],
   ))
 
-  for method in ['ptbal', 'mpf']: 
+  for method in ['ptbal', 'mpf', 'mpfNoType1']: 
 
       # inclusive response
       plots.append(Plot(
