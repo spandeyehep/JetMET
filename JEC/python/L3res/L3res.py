@@ -23,11 +23,16 @@ from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
-argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?' )#, default = True)
-argParser.add_argument('--version',            action='store',      default='V5',            help='JEC version as postfix to 23Sep2016' )
+argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')
+argParser.add_argument('--btb',                                     action='store_true',     help='Require loose back to back requirement wrt leading jet?')
+argParser.add_argument('--minptll',            action='store',      default=30,              type=int, help="minimum dilepton pt")
+argParser.add_argument('--noRes'      ,                             action='store_true',     help='skip application of residual JEC.')
+argParser.add_argument('--noL1'       ,                             action='store_true',     help='skip application of L1 JEC.')
+argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
-argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'] )
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_DYnJets' )
+argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
+argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'], help="Run era?")
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res',     help="subdirectory for plots")
 args = argParser.parse_args()
 
 #
@@ -38,8 +43,13 @@ import RootTools.core.logger as logger_rt
 logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
+# decorate plot directory
+if args.noL1:  args.plot_directory += "_noL1"
+if args.noRes: args.plot_directory += "_noRes"
+if args.small: args.plot_directory += "_small"
+
 # JEC on the fly, tarball configuration
-from JetMET.JetCorrector.JetCorrector import JetCorrector, correction_levels_data, correction_levels_mc
+from JetMET.JetCorrector.JetCorrector import JetCorrector
 
 # JetCorrector config
 Summer16_23Sep2016_DATA = \
@@ -50,15 +60,26 @@ Summer16_23Sep2016_DATA = \
 
 Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016%s_MC'%args.version) ]
 
-correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual' ]
+correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute' , 'L2L3Residual' ] if not args.noRes else [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 
 ## pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
 
-jetCorrector_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
-jetCorrector_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
+#L1L2L3 - L1RC scheme: Mikko on 14th May, 2014
+#MEx += (px(raw) - O(RC)) - py(L1FJ,L2L3)
+#MEx += (pT(raw) * L1RC(ptraw) - pT(L1FJ,L2L3))*cos(phi)
+#MEx += pT(raw) * (L1RC(ptraw) - L1FJ(raw)*L2L3 )*cos(phi)
 
-if args.small: args.plot_directory += "_small"
+jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
+jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
+
+jetCorrector_RC_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1RC'] )
+jetCorrector_RC_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1RC'] )
+
+if args.noL1:
+    jetCorrector_L1_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1FastJet'] )
+    jetCorrector_L1_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1FastJet'] )
+
 #
 # Make samples, will be searched for in the postProcessing directory
 #
@@ -69,8 +90,11 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v38/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-selection       = 'ptll30-btb-njet1p'
-selectionString = 'dl_pt>30&&cos(dl_phi-JetGood_phi[0])<-0.5&&Sum$(JetGood_pt>20 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
+selection       = 'ptll%s-njet1p' % args.minptll
+selectionString = 'dl_pt>%s&&Sum$(JetGood_pt>10 && JetGood_id)>=1' % args.minptll 
+if args.btb:
+    selection+='-btb'
+    selectionString += '&&cos(dl_phi - JetGood_phi[0])<-0.5'
 
 #
 # Text on the plots
@@ -87,7 +111,7 @@ def drawObjects( dataMCScale, lumi_scale ):
     ]
     return [tex.DrawLatex(*l) for l in lines] 
 
-plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.era )
+plot_directory = os.path.join( user_plot_directory, args.plot_directory, args.version, args.dy, args.era )
 
 # Formatting for 1D plots
 def draw1DPlots(plots, mode, dataMCScale):
@@ -101,13 +125,13 @@ def draw1DPlots(plots, mode, dataMCScale):
         ratio = {'yRange':(0.6,1.4)} if len(plot.stack)==2 else None,
         logX = False, logY = log, sorting = True,
         yRange = (0.03, "auto") if log else (0.001, "auto"),
-        #scaling = {0:1},
+        scaling = {0:1} if len(plot.stack)==2 else {},
         legend = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects = drawObjects( dataMCScale , lumi_scale )
       )
 
 #Formatting for 1D profiles
-def draw1DProfiles(plots, mode, dataMCScale, logX = False):
+def draw1DProfiles(plots, mode, dataMCScale):
   for log in [False, True]:
     plot_directory_ = os.path.join(plot_directory, mode + ("_log" if log else ""), selection)
     for plot in plots:
@@ -126,6 +150,23 @@ def draw1DProfiles(plots, mode, dataMCScale, logX = False):
         drawObjects = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects, 
       )
 
+#Formatting for 2D plots
+def draw2DPlots(plots, mode, dataMCScale):
+  for log in [False, True]:
+    plot_directory_ = os.path.join(plot_directory, mode + ("_log" if log else ""), selection)
+    for plot in plots:
+
+      p_drawObjects = map( lambda l:tex.DrawLatex(*l), getattr(plot, "drawObjects", [] ) )
+
+      plotting.draw2D(plot,
+        plot_directory = plot_directory_,
+        logX = False, 
+        #logX = '_vs_dl_pt' in plot.name, 
+        logY = False, 
+        #yRange =  (85,95) if plot.name.startswith('dl_mass') else (0.3, 1.5),# if log else (0.61, 1.41),
+        drawObjects = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects, 
+      )
+
 # decoration
 def dl_pt_string( b ):
     if b[0]<0 and b[1]<0: return ""
@@ -137,7 +178,7 @@ def dl_pt_string( b ):
     return res
 def abs_eta_string( b ):
     if b[0]<0 and b[1]<0: return ""
-    res = "|#eta(ll)|"
+    res = "|#eta(jet)|"
     if b[0]>0:
         res = "%2.1f"%(b[0]) + " #leq " + res
     if b[1]>0:
@@ -173,39 +214,62 @@ jetVars += ['rawPt']
 # List all correction levels
 #corr_levels = ['raw', 'V5'] 
 corr_levels = [ args.version ] 
-pt_corr = 'pt_%s'%args.version
+pt_corr    = 'pt_%s'%args.version
+pt_corr_RC = 'pt_%s_RC'%args.version
 
-nan_jet = {key:float('nan') for key in jetVars + ['pt_%s'%corr_level for corr_level in corr_levels]}
+null_jet = {key:float('nan') for key in jetVars}
+null_jet['pt'] = 0
+null_jet.update( { 'pt_%s'%corr_level:0. for corr_level in corr_levels} )
 
 def makeL3ResObservables( event, sample ):
-    good_jets = filter( lambda j:j['pt']>20, getJets( event, jetColl="JetGood", jetVars = jetVars) )
+    #good_jets = filter( lambda j:j['pt']>=0, getJets( event, jetColl="JetGood", jetVars = jetVars) )
+    good_jets = getJets( event, jetColl="JetGood", jetVars = jetVars)
 
     for j in good_jets:
         # Raw correction level
         j['pt_raw']  = j['rawPt']
         # 'Corr' correction level: L1L2L3 L2res
         if sample.isData:
-            j[pt_corr] =  jetCorrector_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
+            jet_corr_factor    =  jetCorrector_data.   correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
+            jet_corr_factor_RC =  jetCorrector_RC_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
         else:
-            j[pt_corr] =  jetCorrector_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) * j['rawPt'] 
+            jet_corr_factor    =  jetCorrector_mc.     correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
+            jet_corr_factor_RC =  jetCorrector_RC_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
+        
+        # corrected jet
+        j[pt_corr]    =  jet_corr_factor * j['rawPt'] 
 
-    # compute type-1 MET shifts for chs met
+        # noL1 -> divide out L1FastJet, remove 
+        if args.noL1: 
+            if sample.isData:
+                jet_corr_factor_L1 =  jetCorrector_L1_data.correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) 
+            else: 
+                jet_corr_factor_L1 =  jetCorrector_L1_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) 
+            # noL1 -> divide out L1FastJet, remove 
+            j[pt_corr]    =  j[pt_corr]/jet_corr_factor_L1 
+            # no L1RC if 'noL1'
+            j[pt_corr_RC] =  j['rawPt'] 
+        else:
+            # L1RC 
+            j[pt_corr_RC] =  jet_corr_factor_RC * j['rawPt'] 
+
+
+    # compute type-1 MET shifts for chs met L1L2L3 - L1RC (if 'noL1', then L1FastJets is divided out and L1RC is not applied )
     type1_met_shifts = \
         { corr_level: 
-                {'px' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*cos(j['phi']) for j in good_jets), 
-                 'py' :sum( ( j['rawPt'] - j['pt_%s'%corr_level] )*sin(j['phi']) for j in good_jets) } 
+                {'px' :sum( ( j[pt_corr_RC] - j[pt_corr] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j[pt_corr_RC] - j[pt_corr] )*sin(j['phi']) for j in good_jets) } 
           for corr_level in corr_levels }
     
     # leading jet
     event.leading_jet    =  good_jets[0]
     # subleading jet
-    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else nan_jet
+    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else null_jet
 
     # alpha 
-    event.alpha = event.subleading_jet[pt_corr] / event.dl_pt #FIXME
-
+    event.alpha = event.subleading_jet[pt_corr] / event.dl_pt
     # alpha cut flag
-    event.alpha_passed = ( event.nJetGood == 1 ) or (event.alpha < 0.3)
+    event.alpha_passed = ( event.alpha < 0.3)
 
     for corr_level in corr_levels:
 
@@ -223,7 +287,10 @@ def makeL3ResObservables( event, sample ):
         setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
         # MPF 
         setattr( event, "r_mpf_%s"%corr_level,  1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt )
+        # MPF no type-1 
+        setattr( event, "r_mpfNoType1_%s"%corr_level,  1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt )
 
+    #if 'DY' in sample.name: print "pt(j) %3.2f pt(l) %3.2f mpf %3.2f pt-bal %3.2f" %( event.leading_jet['pt_%s'%corr_level], event.dl_pt, event.r_mpf_V6, event.r_ptbal_V6 )
 
 sequence.append( makeL3ResObservables )
 
@@ -250,8 +317,8 @@ def make_weight( dl_pt_bin = ( -1, -1), abs_eta_bin = None, require_alpha_passed
             and  ( ( abs_eta_bin is None ) or (abs(event.leading_jet['eta']) >= abs_eta_bin[0] and abs(event.leading_jet['eta']) < abs_eta_bin[1]) ) 
     return _w
 
-dl_pt_bins   = [ (-1,-1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 )]
-abs_eta_bins = [ (0, 1.3), (1.3, 2.5), (2.5, 3), (3, 5 )]
+dl_pt_bins   = [ (-1,-1), (30, -1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 ), (100, -1)]
+abs_eta_bins = [ (0, 0.8), (0.8, 1.3), (1.3, 1.9), (1.9, 2.5), (2.5, 3), (3,3.2), (3.2, 5 ), (0, 5.2 )]
 
 z_window = 10
 def getLeptonSelection( mode ):
@@ -312,15 +379,22 @@ data.weight         = weight_data
 
 lumi_scale          = data.lumi/1000
 
-#DY_sample     = DY_HT_LO
-DY_sample     = DYnJets
+if args.dy == 'DY_HT_LO':
+    DY_sample      = DY_HT_LO
+    dy_legend_text = "DY(HT)"
+elif args.dy == 'DYnJets':
+    DY_sample      = DYnJets
+    dy_legend_text = "DY(Njet)"
+
+DY_sample.legendText = dy_legend_text
+
 TTJets_sample = Top
 
 other_mc_samples  = [TTZ_LO, TTXNoZ, multiBoson]
 all_mc_samples    = [DY_sample, TTJets_sample] + other_mc_samples
 
 other_mc          = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = other_mc_samples, color = ROOT.kMagenta )
-all_mc_combined   = Sample.combine( name = "all_mc_combined",   texName = "simulation", samples = all_mc_samples , color = ROOT.kBlue )
+all_mc_combined   = Sample.combine( name = "all_mc_combined",   texName = "%s + rest"%dy_legend_text, samples = all_mc_samples , color = ROOT.kBlue )
 all_mc_combined.style = styles.lineStyle( all_mc_combined.color, errors = True )    
 
 
@@ -350,7 +424,9 @@ Plot.setDefaults( stack = stack, \
 
 plots      = []
 profiles1D = []
+plots2D    = []
 
+# 1D plots
 plots.append(Plot(
 name = 'yield', texX = 'yield', texY = 'Number of Events',
 attribute = lambda event, sample: 0.5 + index,
@@ -511,6 +587,50 @@ attribute = (
 binning = Binning.fromThresholds(log_pt_thresholds),
 ))
 
+# 2D plots
+plots2D.append(Plot2D(
+name = 'alpha_vs_dl_pt_data', 
+texX = 'p_{T}(ll) (GeV)', 
+texY = '#alpha',
+stack = Stack(data),
+selectionString = selectionString, 
+attribute = (
+    lambda event, sample: event.dl_pt,
+    lambda event, sample: event.alpha,
+),
+binning=[50,0,200,50,0,1],
+))
+
+
+plots2D.append(Plot2D(
+name = 'alpha_vs_dl_pt_mc', 
+texX = 'p_{T}(ll) (GeV)', 
+texY = '#alpha',
+stack = Stack(mc),
+selectionString = selectionString, 
+attribute = (
+    lambda event, sample: event.dl_pt,
+    lambda event, sample: event.alpha,
+),
+binning=[50,0,200,50,0,1],
+weight = None,
+))
+
+for corr_level in corr_levels:
+    plots2D.append(Plot2D(
+    name = 'DY_Rmpf_vs_Rptbal_%s'%corr_level, 
+    texX = '%s R_{mpf}'%corr_level,
+    texY = '%s R_{ptbal}'%corr_level,
+    stack = Stack(DY_sample),
+    selectionString = selectionString, 
+    attribute = (
+        att_getter( "r_mpf_%s"%corr_level ),
+        att_getter( "r_ptbal_%s"%corr_level)
+    ),
+    binning=[50,-.5,2,50,0,2],
+    weight = lambda event, sample: event.alpha_passed,
+    ))
+
 for corr_level in corr_levels:
 
   plots.append(Plot(
@@ -534,7 +654,7 @@ for corr_level in corr_levels:
       binning=[400/20,0,400],
   ))
 
-  for method in ['ptbal', 'mpf']: 
+  for method in ['ptbal', 'mpf', 'mpfNoType1']: 
 
       # inclusive response
       plots.append(Plot(
@@ -558,6 +678,7 @@ for corr_level in corr_levels:
         binning = [50,0,50],
         weight = make_weight( dl_pt_bin = (30, -1), abs_eta_bin = (0, 1.3) ),
       ))
+      profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string((0, 1.3)))]
 
       # response profile vs dl_pt
       for abs_eta_bin in abs_eta_bins:
@@ -593,8 +714,26 @@ for corr_level in corr_levels:
           ))
           profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(dl_pt_bin))]
 
+      # response profile wrt nvert, binned in pT and eta
+      for abs_eta_bin in abs_eta_bins:
+          for dl_pt_bin in dl_pt_bins:
+              profiles1D.append(Plot(
+                name = 'r_%s_%s_profile_nvtx_dlpt_%i_%i_eta_%3.2f_%3.2f'% ( (method, corr_level) + dl_pt_bin + abs_eta_bin ), 
+                texX = 'vertex multiplicity', 
+                texY = '%s R_{%s}'%(corr_level, method),
+                histo_class = ROOT.TProfile,
+                stack = stack_profile,
+                attribute = (
+                    att_getter( "nVert" ),
+                    att_getter( "r_%s_%s"%(method, corr_level) ),
+                ),
+                binning = [50,0,50],
+                weight = make_weight( dl_pt_bin = dl_pt_bin, abs_eta_bin = abs_eta_bin ),
+              ))
+              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(dl_pt_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin))]
 
-plotting.fill( plots + profiles1D , read_variables = read_variables, sequence = sequence )
+
+plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence )
 
 # Get normalization yields from yield histogram
 for plot in plots:
@@ -609,5 +748,6 @@ for plot in plots:
 yields[args.mode]["MC"] = sum(yields[args.mode][s.name] for s in mc)
 dataMCScale        = yields[args.mode]["data"]/yields[args.mode]["MC"] if yields[args.mode]["MC"] != 0 else float('nan')
 
-draw1DPlots( plots, args.mode, dataMCScale )
+draw1DPlots(    plots,      args.mode, dataMCScale )
 draw1DProfiles( profiles1D, args.mode, dataMCScale )
+draw2DPlots(    plots2D,    args.mode, dataMCScale )

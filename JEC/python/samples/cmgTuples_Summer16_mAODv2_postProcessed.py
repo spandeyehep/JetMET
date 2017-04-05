@@ -20,17 +20,17 @@ try:
   import sys
   postProcessing_directory = sys.modules['__main__'].postProcessing_directory
 except:
-  postProcessing_directory = "postProcessed_80X_v36/dilepTiny/"
+  postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 
 logger.info("Loading MC samples from directory %s", os.path.join(data_directory, postProcessing_directory))
 
-DY_M5to50_HT = [
-                #"DYJetsToLL_M5to50_LO_lheHT100", 
-                "DYJetsToLL_M5to50_HT100to200_comb",
-                "DYJetsToLL_M5to50_HT200to400_comb",
-                "DYJetsToLL_M5to50_HT400to600",
-                "DYJetsToLL_M5to50_HT600toInf_comb"
-                ] 
+#DY_M5to50_HT = [
+#                #"DYJetsToLL_M5to50_LO_lheHT100", 
+#                "DYJetsToLL_M5to50_HT100to200_comb",
+#                "DYJetsToLL_M5to50_HT200to400_comb",
+#                "DYJetsToLL_M5to50_HT400to600",
+#                "DYJetsToLL_M5to50_HT600toInf_comb"
+#                ] 
 
 DY_M50_HT =["DYJetsToLL_M50_LO_ext_lheHT100", 
             "DYJetsToLL_M50_HT100to200_comb",
@@ -46,7 +46,7 @@ DY_M50_HT =["DYJetsToLL_M50_LO_ext_lheHT100",
 dirs = {}
 dirs['DY']               = ["DYJetsToLL_M50", "DYJetsToLL_M10to50" ]
 dirs['DY_LO']            = ["DYJetsToLL_M10to50_LO", "DYJetsToLL_M50_LO_ext"]
-dirs['DY_HT_LO']         =  DY_M50_HT + DY_M5to50_HT
+dirs['DY_HT_LO']         =  DY_M50_HT #+ DY_M5to50_HT
 dirs["DYnJets"] = [ "DY1JetsToLL_M50_LO", "DY2JetsToLL_M50_LO", "DY3JetsToLL_M50_LO", "DY4JetsToLL_M50_LO" ]
 #dirs['TTJets']           = ["TTJets"]
 #dirs['TTJets_LO']        = ["TTJets_LO"] 
@@ -114,7 +114,7 @@ dirs['EWK']              = dirs['diBoson'] + dirs['triBoson'] + dirs['TTX']
 directories = { key : [ os.path.join( data_directory, postProcessing_directory, dir) for dir in dirs[key]] for key in dirs.keys()}
 
 DY              = Sample.fromDirectory(name="DY",               treeName="Events", isData=False, color=color.DY,              texName="DY",                                directory=directories['DY'])
-DY_LO           = Sample.fromDirectory(name="DY_LO",            treeName="Events", isData=False, color=color.DY,              texName="DY (LO)",                           directory=directories['DY_LO'])
+DY_HT_LO       = Sample.fromDirectory(name="DY_HT_LO",            treeName="Events", isData=False, color=color.DY,              texName="DY (LO) HT binned",                directory=directories['DY_HT_LO'])
 DYnJets         = Sample.fromDirectory(name="DYnJets",          treeName="Events", isData=False, color=color.DY,              texName="DY (LO) 1-4 Jets",                 directory=directories['DYnJets'])
 #TTJets          = Sample.fromDirectory(name="TTJets",           treeName="Events", isData=False, color=color.TTJets,          texName="t#bar{t}",                          directory=directories['TTJets'])
 TTJets_Lep      = Sample.fromDirectory(name="TTJets_Lep",       treeName="Events", isData=False, color=color.TTJets,          texName="t#bar{t}(lep)",                     directory=directories['TTJets_Lep'])

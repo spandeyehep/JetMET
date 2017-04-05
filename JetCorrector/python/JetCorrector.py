@@ -108,6 +108,7 @@ class JetCorrector:
 
         for runnumber, corrector in reversed( self.jetCorrectors ):
             if run >= runnumber:
+                logger.debug( "Using IOV %i", runnumber)
                 corrector.setJetPt( rawPt )
                 corrector.setJetEta( eta )
                 corrector.setJetA( area )

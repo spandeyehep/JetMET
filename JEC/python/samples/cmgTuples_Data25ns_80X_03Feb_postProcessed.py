@@ -66,6 +66,8 @@ MuonEG_Run2016_backup           = getSample('MuonEG',     'Run2016',       (5.74
 
 allSamples_Data25ns = []
 allSamples_Data25ns += [DoubleMuon_Run2016BCD_backup,    DoubleEG_Run2016BCD_backup,    MuonEG_Run2016BCD_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016EF_backup,    DoubleEG_Run2016EF_backup,    MuonEG_Run2016EF_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016GH_backup,    DoubleEG_Run2016GH_backup,    MuonEG_Run2016GH_backup]
 allSamples_Data25ns += [DoubleMuon_Run2016BCDEFG_backup, DoubleEG_Run2016BCDEFG_backup, MuonEG_Run2016BCDEFG_backup]
 allSamples_Data25ns += [DoubleMuon_Run2016_backup,       DoubleEG_Run2016_backup,       MuonEG_Run2016_backup]
 
