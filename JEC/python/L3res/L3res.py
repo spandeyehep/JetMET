@@ -66,7 +66,7 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Summer16_mAODv2_postProcessed import *
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
+postProcessing_directory = "postProcessed_80X_v38/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
 selection       = 'ptll30-btb-njet1p'

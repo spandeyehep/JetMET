@@ -12,7 +12,7 @@ except: from JetMET.tools.user import data_directory
 
 # Take post processing directory if defined in main module
 try:    postProcessing_directory = sys.modules['__main__'].postProcessing_directory
-except: postProcessing_directory = 'postProcessed_80X_v36/dilepTiny'
+except: postProcessing_directory = 'postProcessed_80X_v38/dilepTiny'
 
 logger.info("Loading data samples from directory %s", os.path.join(data_directory, postProcessing_directory))
 
