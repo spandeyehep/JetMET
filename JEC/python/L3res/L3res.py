@@ -24,6 +24,8 @@ import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
 argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')
+argParser.add_argument('--btb',                                     action='store_true',     help='Require loose back to back requirement wrt leading jet?')
+argParser.add_argument('--minptll',            action='store',      default=30,              type=int, help="minimum dilepton pt")
 argParser.add_argument('--noRes'      ,                             action='store_true',     help='skip application of residual JEC.')
 argParser.add_argument('--noL1'       ,                             action='store_true',     help='skip application of L1 JEC.')
 argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
@@ -88,8 +90,11 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-selection       = 'ptll30-njet1p'
-selectionString = 'dl_pt>30&&Sum$(JetGood_pt>10 && JetGood_id)>=1' #&&(nJetGood==1||JetGood_pt[1]/dl_pt<0.3)'
+selection       = 'ptll%s-njet1p' % args.minptll
+selectionString = 'dl_pt>%s&&Sum$(JetGood_pt>10 && JetGood_id)>=1' % args.minptll 
+if args.btb:
+    selection+='-btb'
+    selectionString += '&&cos(dl_phi - JetGood_phi[0])<-0.5'
 
 #
 # Text on the plots
@@ -173,7 +178,7 @@ def dl_pt_string( b ):
     return res
 def abs_eta_string( b ):
     if b[0]<0 and b[1]<0: return ""
-    res = "|#eta(ll)|"
+    res = "|#eta(jet)|"
     if b[0]>0:
         res = "%2.1f"%(b[0]) + " #leq " + res
     if b[1]>0:
@@ -285,6 +290,8 @@ def makeL3ResObservables( event, sample ):
         # MPF no type-1 
         setattr( event, "r_mpfNoType1_%s"%corr_level,  1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt )
 
+    #if 'DY' in sample.name: print "pt(j) %3.2f pt(l) %3.2f mpf %3.2f pt-bal %3.2f" %( event.leading_jet['pt_%s'%corr_level], event.dl_pt, event.r_mpf_V6, event.r_ptbal_V6 )
+
 sequence.append( makeL3ResObservables )
 
 log_pt_thresholds = [10**(x/10.) for x in range(11,36)]
@@ -311,7 +318,7 @@ def make_weight( dl_pt_bin = ( -1, -1), abs_eta_bin = None, require_alpha_passed
     return _w
 
 dl_pt_bins   = [ (-1,-1), (30, -1), (20,30), (30,40), (40,50), (50, 100), (100, 200), (200, 500), (500, -1 ), (100, -1)]
-abs_eta_bins = [ (0, 0.8), (0.8, 1.3), (1.3, 1.9), (1.9, 2.5), (2.5, 3), (3,3.2), (3.2, 5 )]
+abs_eta_bins = [ (0, 0.8), (0.8, 1.3), (1.3, 1.9), (1.9, 2.5), (2.5, 3), (3,3.2), (3.2, 5 ), (0, 5.2 )]
 
 z_window = 10
 def getLeptonSelection( mode ):
@@ -419,6 +426,7 @@ plots      = []
 profiles1D = []
 plots2D    = []
 
+# 1D plots
 plots.append(Plot(
 name = 'yield', texX = 'yield', texY = 'Number of Events',
 attribute = lambda event, sample: 0.5 + index,
@@ -579,6 +587,7 @@ attribute = (
 binning = Binning.fromThresholds(log_pt_thresholds),
 ))
 
+# 2D plots
 plots2D.append(Plot2D(
 name = 'alpha_vs_dl_pt_data', 
 texX = 'p_{T}(ll) (GeV)', 
@@ -590,8 +599,8 @@ attribute = (
     lambda event, sample: event.alpha,
 ),
 binning=[50,0,200,50,0,1],
-weight = None,
 ))
+
 
 plots2D.append(Plot2D(
 name = 'alpha_vs_dl_pt_mc', 
@@ -606,6 +615,21 @@ attribute = (
 binning=[50,0,200,50,0,1],
 weight = None,
 ))
+
+for corr_level in corr_levels:
+    plots2D.append(Plot2D(
+    name = 'DY_Rmpf_vs_Rptbal_%s'%corr_level, 
+    texX = '%s R_{mpf}'%corr_level,
+    texY = '%s R_{ptbal}'%corr_level,
+    stack = Stack(DY_sample),
+    selectionString = selectionString, 
+    attribute = (
+        att_getter( "r_mpf_%s"%corr_level ),
+        att_getter( "r_ptbal_%s"%corr_level)
+    ),
+    binning=[50,-.5,2,50,0,2],
+    weight = lambda event, sample: event.alpha_passed,
+    ))
 
 for corr_level in corr_levels:
 
@@ -654,6 +678,7 @@ for corr_level in corr_levels:
         binning = [50,0,50],
         weight = make_weight( dl_pt_bin = (30, -1), abs_eta_bin = (0, 1.3) ),
       ))
+      profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string((0, 1.3)))]
 
       # response profile vs dl_pt
       for abs_eta_bin in abs_eta_bins:
@@ -688,6 +713,24 @@ for corr_level in corr_levels:
             weight = make_weight( dl_pt_bin = dl_pt_bin ),
           ))
           profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(dl_pt_bin))]
+
+      # response profile wrt nvert, binned in pT and eta
+      for abs_eta_bin in abs_eta_bins:
+          for dl_pt_bin in dl_pt_bins:
+              profiles1D.append(Plot(
+                name = 'r_%s_%s_profile_nvtx_dlpt_%i_%i_eta_%3.2f_%3.2f'% ( (method, corr_level) + dl_pt_bin + abs_eta_bin ), 
+                texX = 'vertex multiplicity', 
+                texY = '%s R_{%s}'%(corr_level, method),
+                histo_class = ROOT.TProfile,
+                stack = stack_profile,
+                attribute = (
+                    att_getter( "nVert" ),
+                    att_getter( "r_%s_%s"%(method, corr_level) ),
+                ),
+                binning = [50,0,50],
+                weight = make_weight( dl_pt_bin = dl_pt_bin, abs_eta_bin = abs_eta_bin ),
+              ))
+              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(dl_pt_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin))]
 
 
 plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence )
