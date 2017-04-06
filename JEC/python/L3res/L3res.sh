@@ -7,13 +7,14 @@ python L3res.py --dy DYnJets --mode ee --era inclusive
 python L3res.py --dy DYnJets --mode ee --era Run2016BCD
 python L3res.py --dy DYnJets --mode ee --era Run2016EF
 python L3res.py --dy DYnJets --mode ee --era Run2016GH
-python L3res.py --dy DY_HT_LO --mode mumu --era inclusive
-python L3res.py --dy DY_HT_LO --mode mumu --era Run2016BCD
-python L3res.py --dy DY_HT_LO --mode mumu --era Run2016EF
-python L3res.py --dy DY_HT_LO --mode mumu --era Run2016GH
-python L3res.py --dy DY_HT_LO --mode ee --era inclusive
-python L3res.py --dy DY_HT_LO --mode ee --era Run2016BCD
-python L3res.py --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --dy DY_HT_LO --mode mumu --era inclusive
+#python L3res.py --dy DY_HT_LO --mode mumu --era Run2016BCD
+#python L3res.py --dy DY_HT_LO --mode mumu --era Run2016EF
+#python L3res.py --dy DY_HT_LO --mode mumu --era Run2016GH
+#python L3res.py --dy DY_HT_LO --mode ee --era inclusive
+#python L3res.py --dy DY_HT_LO --mode ee --era Run2016BCD
+#python L3res.py --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --dy DY_HT_LO --mode ee --era Run2016GH
 python L3res.py --noRes --dy DYnJets --mode mumu --era inclusive
 python L3res.py --noRes --dy DYnJets --mode mumu --era Run2016BCD
 python L3res.py --noRes --dy DYnJets --mode mumu --era Run2016EF
@@ -22,15 +23,14 @@ python L3res.py --noRes --dy DYnJets --mode ee --era inclusive
 python L3res.py --noRes --dy DYnJets --mode ee --era Run2016BCD
 python L3res.py --noRes --dy DYnJets --mode ee --era Run2016EF
 python L3res.py --noRes --dy DYnJets --mode ee --era Run2016GH
-python L3res.py --noRes --dy DY_HT_LO --mode mumu --era inclusive
-python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016BCD
-python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016EF
-python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016GH
-python L3res.py --noRes --dy DY_HT_LO --mode ee --era inclusive
-python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016BCD
-python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016EF
-python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016GH
-python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016GH
+#python L3res.py --noRes --dy DY_HT_LO --mode mumu --era inclusive
+#python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016BCD
+#python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016EF
+#python L3res.py --noRes --dy DY_HT_LO --mode mumu --era Run2016GH
+#python L3res.py --noRes --dy DY_HT_LO --mode ee --era inclusive
+#python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016BCD
+#python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --noRes --dy DY_HT_LO --mode ee --era Run2016GH
 python L3res.py --noL1 --dy DYnJets --mode mumu --era inclusive
 python L3res.py --noL1 --dy DYnJets --mode mumu --era Run2016BCD
 python L3res.py --noL1 --dy DYnJets --mode mumu --era Run2016EF
@@ -39,13 +39,14 @@ python L3res.py --noL1 --dy DYnJets --mode ee --era inclusive
 python L3res.py --noL1 --dy DYnJets --mode ee --era Run2016BCD
 python L3res.py --noL1 --dy DYnJets --mode ee --era Run2016EF
 python L3res.py --noL1 --dy DYnJets --mode ee --era Run2016GH
-python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era inclusive
-python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016BCD
-python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016EF
-python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016GH
-python L3res.py --noL1 --dy DY_HT_LO --mode ee --era inclusive
-python L3res.py --noL1 --dy DY_HT_LO --mode ee --era Run2016BCD
-python L3res.py --noL1 --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era inclusive
+#python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016BCD
+#python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016EF
+#python L3res.py --noL1 --dy DY_HT_LO --mode mumu --era Run2016GH
+#python L3res.py --noL1 --dy DY_HT_LO --mode ee --era inclusive
+#python L3res.py --noL1 --dy DY_HT_LO --mode ee --era Run2016BCD
+#python L3res.py --noL1 --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --noL1 --dy DY_HT_LO --mode ee --era Run2016GH
 python L3res.py --noL1 --noRes --dy DYnJets --mode mumu --era inclusive
 python L3res.py --noL1 --noRes --dy DYnJets --mode mumu --era Run2016BCD
 python L3res.py --noL1 --noRes --dy DYnJets --mode mumu --era Run2016EF
@@ -54,12 +55,11 @@ python L3res.py --noL1 --noRes --dy DYnJets --mode ee --era inclusive
 python L3res.py --noL1 --noRes --dy DYnJets --mode ee --era Run2016BCD
 python L3res.py --noL1 --noRes --dy DYnJets --mode ee --era Run2016EF
 python L3res.py --noL1 --noRes --dy DYnJets --mode ee --era Run2016GH
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era inclusive
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016BCD
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016EF
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016GH
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era inclusive
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016BCD
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016EF
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016GH
-python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016GH
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era inclusive
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016BCD
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016EF
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode mumu --era Run2016GH
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era inclusive
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016BCD
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016EF
+#python L3res.py --noL1 --noRes --dy DY_HT_LO --mode ee --era Run2016GH
