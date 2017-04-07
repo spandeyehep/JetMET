@@ -145,17 +145,22 @@ def draw1DProfiles(plots, mode, dataMCScale):
       if plot.name.startswith('dl_mass'):
           y_range     = (89, 93)
           ratio_range = (0.99, 1.01)
+          logY = True
       elif plot.name.startswith( 'ptll_profile_ptll'):
           y_range     = (ptll_thresholds[0], ptll_thresholds[-1])
           ratio_range = (0.97, 1.03)
+          logY = False
       else:
           y_range     = (0.3, 1.5)
           ratio_range = (0.8, 1.2)
+          logY = False
       
       plotting.draw(plot,
         plot_directory = plot_directory_,
         ratio          = {'yRange': ratio_range },
-        logX           = 'profile_pt' in plot.name, logY = False, sorting = False,
+        logX           = 'profile_pt' in plot.name, 
+        logY           = logY, 
+        sorting        = False,
         yRange         =  y_range,
         scaling        = {},
         legend         = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
@@ -506,9 +511,9 @@ binning=[200/4,0,200],
 ))
 
 plots.append(Plot(
-texX = 'p_{T}(ll) (GeV)', texY = 'Number of Events / 10 GeV',
+texX = 'p_{T}(ll) (GeV)', texY = 'Number of Events / 70 GeV',
 attribute = TreeVariable.fromString( "dl_pt/F" ),
-binning=[20,0,400],
+binning = Binning.fromThresholds(ptll_thresholds),
 ))
 
 plots.append(Plot(
