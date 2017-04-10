@@ -23,7 +23,8 @@ from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
-argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')
+argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')#, default = True)
+argParser.add_argument('--skipOtherPlots',                          action='store_true',     help='Skip all other plots.')#, default = True)
 argParser.add_argument('--btb',                                     action='store_true',     help='Require loose back to back requirement wrt leading jet?')
 argParser.add_argument('--minptll',            action='store',      default=30,              type=int, help="minimum dilepton pt")
 argParser.add_argument('--noRes'      ,                             action='store_true',     help='skip application of residual JEC.')
@@ -31,7 +32,7 @@ argParser.add_argument('--noL1'       ,                             action='stor
 argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
 argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
-argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016GH'], help="Run era?")
+argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016G', 'Run2016H'], help="Run era?")
 argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res',     help="subdirectory for plots")
 args = argParser.parse_args()
 
@@ -97,7 +98,13 @@ if args.btb:
     selectionString += '&&cos(dl_phi - JetGood_phi[0])<-0.5'
 
 # pt and thresholds
-from JetMET.JEC.L3res.thresholds import ptll_thresholds, ptll_bins, abs_eta_bins
+from JetMET.JEC.L3res.thresholds import ptll_thresholds, ptll_bins, abs_eta_bins, coarse_ptll_bins, coarse_abs_eta_bins, L2res_abs_eta_bins
+
+#L2res_abs_eta_bins = []
+
+if args.small:
+    ptll_bins = ptll_bins[:1]
+    #abs_eta_bins = abs_eta_bins[:1]
 
 # Text on the plots
 #
@@ -121,15 +128,21 @@ def draw1DPlots(plots, mode, dataMCScale):
     plot_directory_ = os.path.join(plot_directory, mode + ("_log" if log else ""), selection)
     for plot in plots:
       if not max(l[0].GetMaximum() for l in plot.histos): continue # Empty plot
-      
+      p_drawObjects = map( lambda l:tex.DrawLatex(*l), getattr(plot, "drawObjects", [] ) )
+
+      if hasattr( plot, "subdir"):
+        plot_directory__ = os.path.join( plot_directory_, plot.subdir)
+      else:
+        plot_directory__ = plot_directory_  
+
       plotting.draw(plot,
-        plot_directory = plot_directory_,
-        ratio          = {'yRange':(0.6,1.4)} if len(plot.stack)==2 else None,
+        plot_directory = plot_directory__,
+        ratio          = {'yRange':(0.6,1.4)} if len(plot.stack)>=2 else None,
         logX = False, logY = log, sorting = True,
         yRange         = (0.03, "auto") if log else (0.001, "auto"),
         scaling        = {0:1} if len(plot.stack)==2 else {},
         legend         = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
-        drawObjects    = drawObjects( dataMCScale , lumi_scale )
+        drawObjects    = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects
       )
 
 #Formatting for 1D profiles
@@ -145,23 +158,28 @@ def draw1DProfiles(plots, mode, dataMCScale):
       if plot.name.startswith('dl_mass'):
           y_range     = (89, 93)
           ratio_range = (0.99, 1.01)
-          logY = True
+          logY = False
       elif plot.name.startswith( 'ptll_profile_ptll'):
           y_range     = (ptll_thresholds[0], ptll_thresholds[-1])
           ratio_range = (0.97, 1.03)
-          logY = False
+          logY = True
       else:
           y_range     = (0.3, 1.5)
           ratio_range = (0.8, 1.2)
           logY = False
+
+      if hasattr( plot, "subdir"):
+        plot_directory__ = os.path.join( plot_directory_, plot.subdir)
+      else:
+        plot_directory__ = plot_directory_  
       
       plotting.draw(plot,
-        plot_directory = plot_directory_,
-        ratio          = {'yRange': ratio_range },
+        plot_directory = plot_directory__,
+        ratio          = {'yRange': ratio_range } if not plot.name.startswith('r_gen_') else None,
         logX           = 'profile_pt' in plot.name, 
         logY           = logY, 
         sorting        = False,
-        yRange         =  y_range,
+        yRange         = y_range,
         scaling        = {},
         legend         = (0.50,0.88-0.04*sum(map(len, plot.histos)),0.9,0.88),
         drawObjects    = drawObjects( dataMCScale , lumi_scale ) + p_drawObjects, 
@@ -175,8 +193,13 @@ def draw2DPlots(plots, mode, dataMCScale):
 
       p_drawObjects = map( lambda l:tex.DrawLatex(*l), getattr(plot, "drawObjects", [] ) )
 
+      if hasattr( plot, "subdir"):
+        plot_directory__ = os.path.join( plot_directory_, plot.subdir)
+      else:
+        plot_directory__ = plot_directory_  
+
       plotting.draw2D(plot,
-        plot_directory = plot_directory_,
+        plot_directory = plot_directory__,
         logX = False, 
         #logX = '_vs_dl_pt' in plot.name, 
         logY = False, 
@@ -198,16 +221,15 @@ def abs_eta_string( b ):
     if b[0]<0 and b[1]<0: return ""
     res = "|#eta(jet)|"
     if b[0]>0:
-        res = "%2.1f"%(b[0]) + " #leq " + res
+        res = "%4.3f"%(b[0]) + " #leq " + res
     if b[1]>0:
-        res = res + "< %2.1f"%(b[1])
+        res = res + "< %4.3f"%(b[1])
     return res 
 
 #
 # Read variables and sequences
 #
 read_variables = ["run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l1_dxy/F", "l2_eta/F", "l2_phi/F", "l2_dxy/F", "rho/F", 
-                  "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]", 
                   "dl_mass/F", "dl_eta/F", "dl_pt/F","dl_phi/F",
                   "met_chsPt/F", "met_chsPhi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", 'nVert/I']
 sequence = []
@@ -219,7 +241,7 @@ read_variables += [
     ]
 
 jetMCBranches = [ "mcMatchFlav/I", "partonId/I", "mcFlavour/I", "partonFlavour/I", "hadronFlavour/I", "mcMatchId/I", "mcPt/F" ]
-jetMCVars = [ s.split('/')[0] for s in jetMCBranches]
+jetMCVars = [ s.split('/')[0] for s in jetMCBranches ]
 
 # mcMatchFlav   Flavour of associated parton from hard scatter (if any) for Jets failing id after jet-lepton cleaning 
 # partonId  parton flavour (manually matching to status 23 particles) for Jets failing id after jet-lepton cleaning 
@@ -228,17 +250,15 @@ jetMCVars = [ s.split('/')[0] for s in jetMCBranches]
 # hadronFlavour hadron flavour (ghost matching to B/C hadrons) for Jets failing id after jet-lepton cleaning 
 # mcMatchId Match to source from hard scatter (pdgId of heaviest particle in chain, 25 for H, 6 for t, 23/24 for W/Z), zero if non-prompt or fake for Jets failing id after jet-lepton cleaning 
 
-jetVars += ['rawPt']
+jetVars += [ 'rawPt','mcPt' ]
 
-# List all correction levels
-#corr_levels = ['raw', 'V5'] 
-corr_levels = [ args.version ] 
-pt_corr    = 'pt_%s'%args.version
-pt_corr_RC = 'pt_%s_RC'%args.version
 
 null_jet = {key:float('nan') for key in jetVars}
-null_jet['pt'] = 0
-null_jet.update( { 'pt_%s'%corr_level:0. for corr_level in corr_levels} )
+null_jet['pt']         = 0
+null_jet['pt_corr']    = 0
+null_jet['pt_corr_RC'] = 0
+
+alphas = ["30", "20", "15", "10"]
 
 def makeL3ResObservables( event, sample ):
     good_jets = getJets( event, jetColl="JetGood", jetVars = jetVars)
@@ -255,7 +275,7 @@ def makeL3ResObservables( event, sample ):
             jet_corr_factor_RC =  jetCorrector_RC_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )  
         
         # corrected jet
-        j[pt_corr]    =  jet_corr_factor * j['rawPt'] 
+        j['pt_corr']    =  jet_corr_factor * j['rawPt'] 
 
         # noL1 -> divide out L1FastJet, remove 
         if args.noL1: 
@@ -264,20 +284,18 @@ def makeL3ResObservables( event, sample ):
             else: 
                 jet_corr_factor_L1 =  jetCorrector_L1_mc.  correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run ) 
             # noL1 -> divide out L1FastJet, remove 
-            j[pt_corr]    =  j[pt_corr]/jet_corr_factor_L1 
+            j['pt_corr']    =  j['pt_corr']/jet_corr_factor_L1 
             # no L1RC if 'noL1'
-            j[pt_corr_RC] =  j['rawPt'] 
+            j['pt_corr_RC'] =  j['rawPt'] 
         else:
             # L1RC 
-            j[pt_corr_RC] =  jet_corr_factor_RC * j['rawPt'] 
+            j['pt_corr_RC'] =  jet_corr_factor_RC * j['rawPt'] 
 
 
     # compute type-1 MET shifts for chs met L1L2L3 - L1RC (if 'noL1', then L1FastJets is divided out and L1RC is not applied )
     type1_met_shifts = \
-        { corr_level: 
-                {'px' :sum( ( j[pt_corr_RC] - j[pt_corr] )*cos(j['phi']) for j in good_jets), 
-                 'py' :sum( ( j[pt_corr_RC] - j[pt_corr] )*sin(j['phi']) for j in good_jets) } 
-          for corr_level in corr_levels }
+                {'px' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi']) for j in good_jets) } 
     
     # leading jet
     event.leading_jet    = good_jets[0]
@@ -285,30 +303,37 @@ def makeL3ResObservables( event, sample ):
     event.subleading_jet = good_jets[1] if len(good_jets)>=2 else null_jet
 
     # alpha 
-    event.alpha = event.subleading_jet[pt_corr] / event.dl_pt
+    event.alpha = event.subleading_jet['pt_corr'] / event.dl_pt
     # alpha cut flag
-    event.alpha_passed = ( event.alpha < 0.3)
+    event.alpha_30_passed = ( event.alpha < 0.3)
+    event.alpha_20_passed = ( event.alpha < 0.2)
+    event.alpha_15_passed = ( event.alpha < 0.15)
+    event.alpha_10_passed = ( event.alpha < 0.1)
 
-    for corr_level in corr_levels:
+    # chs MET 
+    chs_MEx_corr = event.met_chsPt*cos(event.met_chsPhi) + type1_met_shifts['px']
+    chs_MEy_corr = event.met_chsPt*sin(event.met_chsPhi) + type1_met_shifts['py']
 
-        # chs MET 
-        chs_MEx_corr = event.met_chsPt*cos(event.met_chsPhi) + type1_met_shifts[corr_level]['px']
-        chs_MEy_corr = event.met_chsPt*sin(event.met_chsPhi) + type1_met_shifts[corr_level]['py']
+    chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
+    chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
 
-        chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
-        chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
+    setattr( event, "met_chsPt_type1",  chs_MEt_corr )
+    setattr( event, "met_chsPhi_type1", chs_MEphi_corr )
 
-        setattr( event, "met_chsPt_type1_%s"%corr_level,  chs_MEt_corr )
-        setattr( event, "met_chsPhi_type1_%s"%corr_level, chs_MEphi_corr )
+    # PT-bal
+    event.r_ptbal      = event.leading_jet['pt_corr'] / event.dl_pt
+    # PT-bal raw
+    event.r_ptbalRaw   = event.leading_jet['rawPt'] / event.dl_pt 
+    # MPF 
+    event.r_mpf        = 1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt
+    # MPF no type-1 
+    event.r_mpfNoType1 = 1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt
 
-        # PT-bal
-        setattr( event, "r_ptbal_%s"%corr_level,  event.leading_jet['pt_%s'%corr_level] / event.dl_pt )
-        # MPF 
-        setattr( event, "r_mpf_%s"%corr_level,  1. + chs_MEt_corr * cos(chs_MEphi_corr - event.dl_phi) / event.dl_pt )
-        # MPF no type-1 
-        setattr( event, "r_mpfNoType1_%s"%corr_level,  1. + event.met_chsPt * cos(event.met_chsPhi - event.dl_phi) / event.dl_pt )
-
-    #if 'DY' in sample.name: print "pt(j) %3.2f pt(l) %3.2f mpf %3.2f pt-bal %3.2f" %( event.leading_jet['pt_%s'%corr_level], event.dl_pt, event.r_mpf_V6, event.r_ptbal_V6 )
+    # gen 
+    if not sample.isData and event.leading_jet['mcPt']>0:
+        event.r_gen    = event.leading_jet['pt_corr']/event.leading_jet['mcPt']
+    else:
+        event.r_gen    = None 
 
 sequence.append( makeL3ResObservables )
 
@@ -323,14 +348,15 @@ def att_getter( arg, key = None):
             return getattr( event, arg )[key]
         return _f
 
-def make_weight( ptll_bin = ( -1, -1), abs_eta_bin = None, require_alpha_passed = True):
+def make_weight( ptll_bin = ( -1, -1), abs_eta_bin = None, alpha_passed = "alpha_30_passed", is_finite = []):
 
     def _w( event, sample ):
         return \
-            ( (not require_alpha_passed ) or event.alpha_passed ) \
+            ( ( alpha_passed is None) or getattr(event, alpha_passed) ) \
             and  ( ( ptll_bin[0]<0 ) or (event.dl_pt > ptll_bin[0]) ) \
             and  ( ( ptll_bin[1]<0 ) or (event.dl_pt < ptll_bin[1]) ) \
-            and  ( ( abs_eta_bin is None ) or (abs(event.leading_jet['eta']) >= abs_eta_bin[0] and abs(event.leading_jet['eta']) < abs_eta_bin[1]) ) 
+            and  ( ( abs_eta_bin is None ) or (abs(event.leading_jet['eta']) >= abs_eta_bin[0] and abs(event.leading_jet['eta']) < abs_eta_bin[1]) ) \
+            and  ( False not in [getattr(event, att)<float('inf') for att in is_finite] )
     return _w
 
 
@@ -350,11 +376,17 @@ if   args.mode=="mumu":
         data = DoubleMuon_Run2016BCD_backup
         runrange = None
     elif args.era == "Run2016EF":
-        data = DoubleMuon_Run2016EF_backup
+        data = DoubleMuon_Run2016EF_backup #F early
         runrange = "run<=278801"
     elif args.era == "Run2016GH":
         data = DoubleMuon_Run2016GH_backup # contains also F for Flate
         runrange = "run>=278802" 
+    elif args.era == "Run2016G":
+        data = DoubleMuon_Run2016G_backup # contains also F for Flate
+        runrange = "run>=278802" 
+    elif args.era == "Run2016H":
+        data = DoubleMuon_Run2016H_backup
+        runrange = None 
 
     data.texName = "data (2 #mu)"
     index = 0
@@ -367,11 +399,17 @@ elif args.mode=="ee":
         data = DoubleEG_Run2016BCD_backup
         runrange = None
     elif args.era == "Run2016EF":
-        data = DoubleEG_Run2016EF_backup
+        data = DoubleEG_Run2016EF_backup # F early
         runrange = "run<=278801"
     elif args.era == "Run2016GH":
         data = DoubleEG_Run2016GH_backup # contains also F for Flate
         runrange = "run>=278802" 
+    elif args.era == "Run2016G":
+        data = DoubleEG_Run2016G_backup # contains also F for Flate
+        runrange = "run>=278802" 
+    elif args.era == "Run2016H":
+        data = DoubleEG_Run2016H_backup
+        runrange = None
 
     data.texName = "data (2 e)"
     index = 1
@@ -390,6 +428,7 @@ data.setSelectionString( data_selection )
 data.name           = "data"
 data.style          = styles.errorStyle(ROOT.kBlack)
 data.weight         = weight_data 
+data.read_variables = [ "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]" ]
 
 lumi_scale          = data.lumi/1000
 
@@ -417,13 +456,15 @@ for sample in all_mc_samples: sample.style = styles.fillStyle(sample.color)
 
 for sample in all_mc_samples + [all_mc_combined]: #+[other_mc]
     sample.scale          = lumi_scale
-    sample.read_variables = ['reweightDilepTriggerBackup/F','reweightLeptonSF/F','reweightPU36fb/F', 'nTrueInt/F']
+    sample.read_variables = ['reweightDilepTriggerBackup/F','reweightLeptonSF/F','reweightPU36fb/F', 'nTrueInt/F', "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F,mcPt/F]"]
     sample.weight         = weight_mc 
     sample.setSelectionString([getFilterCut(isData=False),  getLeptonSelection(args.mode)])
 
 mc = [DY_sample, TTJets_sample] #, other_mc]
-stack          = Stack( mc,  data )
-stack_profile  = Stack( [all_mc_combined], data )
+stack             = Stack( mc,  data )
+stack_gen         = Stack( mc )
+stack_profile     = Stack( [all_mc_combined], data )
+stack_profile_gen = Stack( [all_mc_combined] )
 
 if args.small:
     for sample in stack.samples + stack_profile.samples:
@@ -431,7 +472,7 @@ if args.small:
 
 # Use some defaults
 Plot.setDefaults( stack = stack, \
-                weight = lambda event, sample: event.alpha_passed,   
+                weight = lambda event, sample: event.alpha_30_passed,   
                 selectionString = selectionString, 
                 addOverFlowBin = None
 )
@@ -446,149 +487,261 @@ name = 'yield', texX = 'yield', texY = 'Number of Events',
 attribute = lambda event, sample: 0.5 + index,
 binning=[3, 0, 3],
 ))
+plots[-1].subdir = "plots"
 
-plots.append( 
-Plot(
-name = 'jet1_eta', 
-texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
-attribute = lambda event, sample: event.leading_jet['eta'],
-binning=[104,-5.2,5.2],
-))
+if not args.skipOtherPlots:
 
-plots.append( 
-Plot(
-name = 'jet2_eta', 
-texX = '#eta(subleading jet) (GeV)', texY = 'Number of Events',
-attribute = lambda event, sample: event.subleading_jet['eta'],
-binning=[104,-5.2,5.2],
-))
+    plots.append( 
+    Plot(
+    name = 'jet1_eta', 
+    texX = '#eta(leading jet) (GeV)', texY = 'Number of Events',
+    attribute = lambda event, sample: event.leading_jet['eta'],
+    binning=[104,-5.2,5.2],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append( 
-Plot(
-name = 'alpha', 
-texX = '#alpha', texY = 'Number of Events',
-attribute = lambda event, sample: event.alpha,
-binning=[50,0,1],
-))
+    plots.append( 
+    Plot(
+    name = 'jet2_eta', 
+    texX = '#eta(subleading jet) (GeV)', texY = 'Number of Events',
+    attribute = lambda event, sample: event.subleading_jet['eta'],
+    binning=[104,-5.2,5.2],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append( 
-Plot(
-name = 'dRj1j2', 
-texX = '#Delta R(j_{1}, j_{2})', texY = 'Number of Events',
-attribute = lambda event, sample: deltaR( event.leading_jet, event.subleading_jet),
-binning=[60,0,6],
-))
+    plots.append( 
+    Plot(
+    name = 'alpha', 
+    texX = '#alpha', texY = 'Number of Events',
+    attribute = lambda event, sample: event.alpha,
+    weight = lambda event, sample: 1, # Don't use alpha weight for alpha plot
+    binning=[50,0,1],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'number of jets', texY = 'Number of Events',
-attribute = TreeVariable.fromString('nJetGood/I'),
-binning=[14,0,14],
-))
+    plots.append( 
+    Plot(
+    name = 'dRj1j2', 
+    texX = '#Delta R(j_{1}, j_{2})', texY = 'Number of Events',
+    attribute = lambda event, sample: deltaR( event.leading_jet, event.subleading_jet),
+    binning=[60,0,6],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'number of medium b-tags (CSVM)', texY = 'Number of Events',
-attribute = TreeVariable.fromString('nBTag/I'),
-binning=[8,0,8],
-))
+    plots.append(Plot(
+    texX = 'number of jets', texY = 'Number of Events',
+    attribute = TreeVariable.fromString('nJetGood/I'),
+    binning=[14,0,14],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
-attribute = TreeVariable.fromString( "ht/F" ),
-binning=[500/25,0,600],
-))
+    plots.append(Plot(
+    texX = 'number of medium b-tags (CSVM)', texY = 'Number of Events',
+    attribute = TreeVariable.fromString('nBTag/I'),
+    binning=[8,0,8],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'gen-H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
-attribute = TreeVariable.fromString( "lheHTIncoming/F" ),
-stack = Stack( mc ),
-binning=[500/25,0,600],
-))
+    plots.append(Plot(
+    texX = 'H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
+    attribute = TreeVariable.fromString( "ht/F" ),
+    binning=[500/25,0,600],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'm(ll) of leading dilepton (GeV)', texY = 'Number of Events / 4 GeV',
-attribute = TreeVariable.fromString( "dl_mass/F" ),
-binning=[200/4,0,200],
-))
+    plots.append(Plot(
+    texX = 'gen-H_{T} (GeV)', texY = 'Number of Events / 25 GeV',
+    attribute = TreeVariable.fromString( "lheHTIncoming/F" ),
+    stack = Stack( mc ),
+    binning=[500/25,0,600],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'p_{T}(ll) (GeV)', texY = 'Number of Events / 70 GeV',
-attribute = TreeVariable.fromString( "dl_pt/F" ),
-binning = Binning.fromThresholds(ptll_thresholds),
-))
+    plots.append(Plot(
+    texX = 'm(ll) of leading dilepton (GeV)', texY = 'Number of Events / 4 GeV',
+    attribute = TreeVariable.fromString( "dl_mass/F" ),
+    binning=[200/4,0,200],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-  name = 'dl_eta', 
-  texX = '#eta(ll) ', texY = 'Number of Events',
-  attribute = lambda event, sample: event.dl_eta, 
-  read_variables = ['dl_eta/F'],
-  binning=[52,-5.2,5.2],
-))
+    plots.append(Plot(
+    texX = 'p_{T}(ll) (GeV)', texY = 'Number of Events / 70 GeV',
+    attribute = TreeVariable.fromString( "dl_pt/F" ),
+    binning = Binning.fromThresholds(ptll_thresholds),
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = '#phi(ll)', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "dl_phi/F" ),
-binning=[10,-pi,pi],
-))
+    plots.append(Plot(
+      name = 'dl_eta', 
+      texX = '#eta(ll) ', texY = 'Number of Events',
+      attribute = lambda event, sample: event.dl_eta, 
+      read_variables = ['dl_eta/F'],
+      binning=[52,-5.2,5.2],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-name = 'nVtxs', texX = 'vertex multiplicity', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "nVert/I" ),
-binning=[50,0,50],
-))
+    plots.append(Plot(
+    texX = '#phi(ll)', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "dl_phi/F" ),
+    binning=[10,-pi,pi],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-name = 'rho', texX = 'rho', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "rho/F" ),
-binning=[50,0,50],
-))
+    plots.append(Plot(
+    name = 'nVtxs', texX = 'vertex multiplicity', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "nVert/I" ),
+    binning=[50,0,50],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'p_{T}(l_{1}) (GeV)', texY = 'Number of Events / 15 GeV',
-attribute = TreeVariable.fromString( "l1_pt/F" ),
-binning=[20,0,300],
-))
+    plots.append(Plot(
+    name = 'rho', texX = 'rho', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "rho/F" ),
+    binning=[50,0,50],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'd_{xy}(l_{1})', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "l1_dxy/F" ),
-binning=[40,-0.2,0.2],
-))
+    plots.append(Plot(
+    texX = 'p_{T}(l_{1}) (GeV)', texY = 'Number of Events / 15 GeV',
+    attribute = TreeVariable.fromString( "l1_pt/F" ),
+    binning=[20,0,300],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = '#eta(l_{1})', texY = 'Number of Events',
-name = 'l1_eta', attribute = lambda event, sample: event.l1_eta, read_variables = ['l1_eta/F'],
-binning=[60,-3,3],
-))
+    plots.append(Plot(
+    texX = 'd_{xy}(l_{1})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l1_dxy/F" ),
+    binning=[40,-0.2,0.2],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = '#phi(l_{1})', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "l1_phi/F" ),
-binning=[10,-pi,pi],
-))
+    plots.append(Plot(
+    texX = '#eta(l_{1})', texY = 'Number of Events',
+    name = 'l1_eta', attribute = lambda event, sample: event.l1_eta, read_variables = ['l1_eta/F'],
+    binning=[60,-3,3],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'p_{T}(l_{2}) (GeV)', texY = 'Number of Events / 15 GeV',
-attribute = TreeVariable.fromString( "l2_pt/F" ),
-binning=[20,0,300],
-))
+    plots.append(Plot(
+    texX = '#phi(l_{1})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l1_phi/F" ),
+    binning=[10,-pi,pi],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = 'd_{xy}(l_{2})', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "l2_dxy/F" ),
-binning=[40,-0.2,0.2],
-))
+    plots.append(Plot(
+    texX = 'p_{T}(l_{2}) (GeV)', texY = 'Number of Events / 15 GeV',
+    attribute = TreeVariable.fromString( "l2_pt/F" ),
+    binning=[20,0,300],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = '#eta(l_{2})', texY = 'Number of Events',
-name = 'l2_eta', attribute = lambda event, sample: event.l2_eta, read_variables = ['l2_eta/F'],
-binning=[60,-3,3],
-))
+    plots.append(Plot(
+    texX = 'd_{xy}(l_{2})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l2_dxy/F" ),
+    binning=[40,-0.2,0.2],
+    ))
+    plots[-1].subdir = "plots"
 
-plots.append(Plot(
-texX = '#phi(l_{2})', texY = 'Number of Events',
-attribute = TreeVariable.fromString( "l2_phi/F" ),
-binning=[10,-pi,pi],
-))
+    plots.append(Plot(
+    texX = '#eta(l_{2})', texY = 'Number of Events',
+    name = 'l2_eta', attribute = lambda event, sample: event.l2_eta, read_variables = ['l2_eta/F'],
+    binning=[60,-3,3],
+    ))
+    plots[-1].subdir = "plots"
+
+    plots.append(Plot(
+    texX = '#phi(l_{2})', texY = 'Number of Events',
+    attribute = TreeVariable.fromString( "l2_phi/F" ),
+    binning=[10,-pi,pi],
+    ))
+    plots[-1].subdir = "plots"
+
+    # 2D plots
+    plots2D.append(Plot2D(
+    name = 'alpha_vs_dl_pt_data', 
+    texX = 'p_{T}(ll) (GeV)', 
+    texY = '#alpha',
+    stack = Stack(data),
+    selectionString = selectionString, 
+    attribute = (
+        lambda event, sample: event.dl_pt,
+        lambda event, sample: event.alpha,
+    ),
+    binning=[50,0,200,50,0,1],
+    ))
+    plots2D[-1].subdir = "plots"
+
+    plots2D.append(Plot2D(
+    name = 'alpha_vs_dl_pt_mc', 
+    texX = 'p_{T}(ll) (GeV)', 
+    texY = '#alpha',
+    stack = Stack(mc),
+    selectionString = selectionString, 
+    attribute = (
+        lambda event, sample: event.dl_pt,
+        lambda event, sample: event.alpha,
+    ),
+    binning=[50,0,200,50,0,1],
+    weight = None,
+    ))
+    plots2D[-1].subdir = "plots"
+
+    plots2D.append(Plot2D(
+    name = 'DY_Rmpf_vs_Rptbal', 
+    texX = '%s R_{mpf}'%args.version,
+    texY = '%s R_{ptbal}'%args.version,
+    stack = Stack(DY_sample),
+    selectionString = selectionString, 
+    attribute = (
+        att_getter( "r_mpf" ),
+        att_getter( "r_ptbal" )
+    ),
+    binning=[50,-.5,2,50,0,2],
+    weight = lambda event, sample: event.alpha_30_passed,
+    ))
+    plots2D[-1].subdir = "plots"
+
+    plots.append(Plot(
+    name = 'jet1_pt_%s'%args.version, 
+    texX = 'p_{T}(leading %s jet) (GeV)'%args.version, texY = 'Number of Events / 30 GeV',
+    attribute = att_getter( "leading_jet", 'pt_corr' ),
+    binning=[600/30,0,600],
+    ))
+    plots[-1].subdir = "plots"
+
+    plots.append(Plot(
+    name = 'jet2_pt_%s'%args.version, 
+    texX = 'p_{T}(subleading %s jet) (GeV)'%args.version, texY = 'Number of Events / 30 GeV',
+    attribute = att_getter( "subleading_jet", 'pt_corr' ),
+    binning=[600/30,0,600],
+    ))
+    plots[-1].subdir = "plots"
+
+    plots.append(Plot(
+      name = "chsMET_%s" %args.version,
+      texX = 'chs-E_{T}^{miss} (GeV)', texY = 'Number of Events / 20 GeV',
+      attribute = att_getter( "met_chsPt_type1" ),
+      binning=[400/20,0,400],
+    ))
+    plots[-1].subdir = "plots"
+
+# pt profile vs dl_pt
+for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
+  profiles1D.append(Plot(
+    name = ( 'ptll_profile_ptll_for_eta_%4.3f_%4.3f'%( abs_eta_bin )).replace('.',''), 
+    texX = 'p_{T}(ll) (GeV)', 
+    texY = 'p_{T}(ll) (GeV)', 
+    histo_class = ROOT.TProfile,
+    stack = stack_profile,
+    attribute = (
+        "dl_pt",
+        "dl_pt",
+    ),
+    binning = Binning.fromThresholds(ptll_thresholds),
+    weight = make_weight( abs_eta_bin = abs_eta_bin ),
+  ))
+  profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string(abs_eta_bin))]
 
 profiles1D.append(Plot(
 name = 'dl_mass_profile_pt', texX = 'p_{T}(ll) (GeV)', texY = 'm(ll) (GeV)',
@@ -599,172 +752,106 @@ attribute = (
     lambda event, sample: event.dl_mass,
 ),
 binning = Binning.fromThresholds(ptll_thresholds),
+weight = make_weight( abs_eta_bin = (0, 1.3), alpha_passed = "alpha_30_passed" ),
 ))
-
-# 2D plots
-plots2D.append(Plot2D(
-name = 'alpha_vs_dl_pt_data', 
-texX = 'p_{T}(ll) (GeV)', 
-texY = '#alpha',
-stack = Stack(data),
-selectionString = selectionString, 
-attribute = (
-    lambda event, sample: event.dl_pt,
-    lambda event, sample: event.alpha,
-),
-binning=[50,0,200,50,0,1],
-))
+profiles1D[-1].drawObjects = [(0.2, 0.8, abs_eta_string((0, 1.3))), (0.2,0.75, "#alpha<0.3") ]
 
 
-plots2D.append(Plot2D(
-name = 'alpha_vs_dl_pt_mc', 
-texX = 'p_{T}(ll) (GeV)', 
-texY = '#alpha',
-stack = Stack(mc),
-selectionString = selectionString, 
-attribute = (
-    lambda event, sample: event.dl_pt,
-    lambda event, sample: event.alpha,
-),
-binning=[50,0,200,50,0,1],
-weight = None,
-))
+for_comparison_eta = {abs_eta_bin:{alpha:{} for alpha in alphas } for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins}
+for_comparison_pt  = {ptll_bin:   {alpha:{} for alpha in alphas } for ptll_bin    in ptll_bins}
 
-for corr_level in corr_levels:
-    plots2D.append(Plot2D(
-    name = 'DY_Rmpf_vs_Rptbal_%s'%corr_level, 
-    texX = '%s R_{mpf}'%corr_level,
-    texY = '%s R_{ptbal}'%corr_level,
-    stack = Stack(DY_sample),
-    selectionString = selectionString, 
-    attribute = (
-        att_getter( "r_mpf_%s"%corr_level ),
-        att_getter( "r_ptbal_%s"%corr_level)
-    ),
-    binning=[50,-.5,2,50,0,2],
-    weight = lambda event, sample: event.alpha_passed,
-    ))
+methods = ['ptbal', 'mpf',  'mpfNoType1']
+if not args.skipOtherPlots: methpds += ['ptbalRaw', 'gen']
 
-for corr_level in corr_levels:
+for method in methods: 
 
-  plots.append(Plot(
-    name = 'jet1_pt_%s'%corr_level, 
-    texX = 'p_{T}(leading %s jet) (GeV)'%corr_level, texY = 'Number of Events / 30 GeV',
-    attribute = att_getter( "leading_jet", 'pt_%s'%corr_level ),
-    binning=[600/30,0,600],
-  ))
+  stack_profile_ = stack_profile_gen if method=='gen' else stack_profile
+  stack_         = stack_gen if method=='gen' else stack
 
-  plots.append(Plot(
-    name = 'jet2_pt_%s'%corr_level, 
-    texX = 'p_{T}(subleading %s jet) (GeV)'%corr_level, texY = 'Number of Events / 30 GeV',
-    attribute = att_getter( "subleading_jet", 'pt_%s'%corr_level ),
-    binning=[600/30,0,600],
-  ))
-
-  plots.append(Plot(
-      name = "chsMET_%s" %corr_level,
-      texX = 'chs-E_{T}^{miss} (GeV)', texY = 'Number of Events / 20 GeV',
-      attribute = att_getter( "met_chsPt_type1_%s"%corr_level ),
-      binning=[400/20,0,400],
-  ))
-
-  # pt profile vs dl_pt
-  for abs_eta_bin in abs_eta_bins:
+  # response profile vs dl_pt
+  for alpha in [ "30", "20", "15", "10"]: 
+    for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
       profiles1D.append(Plot(
-        name = 'ptll_profile_ptll_for_eta_%3.2f_%3.2f'%( abs_eta_bin ), 
+        name = ('r_%s_%s_a%s_profile_ptll_for_eta_%4.3f_%4.3f'%( ( method, args.version, alpha) + abs_eta_bin )).replace('.',''), 
         texX = 'p_{T}(ll) (GeV)', 
-        texY = 'p_{T}(ll) (GeV)', 
+        texY = '%s R_{%s}'%(args.version, method),
         histo_class = ROOT.TProfile,
-        stack = stack_profile,
+        stack = stack_profile_,
         attribute = (
             "dl_pt",
-            "dl_pt",
+            att_getter( "r_%s"%method ),
         ),
         binning = Binning.fromThresholds(ptll_thresholds),
-        weight = make_weight( abs_eta_bin = abs_eta_bin ),
+        weight = make_weight( abs_eta_bin = abs_eta_bin, alpha_passed = "alpha_%s_passed"%alpha,  is_finite = [ "r_%s"%method ] ),
       ))
-      profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string(abs_eta_bin))]
+      profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string(abs_eta_bin)), (0.5, 0.71, "#alpha<%2.1f"% ( float(alpha)/100.)) ]
+      for_comparison_eta[abs_eta_bin][alpha][method] = profiles1D[-1]
 
-  for method in ['ptbal', 'mpf', 'mpfNoType1']: 
-
+  if not args.skipOtherPlots:
       # inclusive response
       plots.append(Plot(
-          name = "R_%s_%s"%(method, corr_level),
-          texX = '%s R_{%s}'%(corr_level, method), texY = 'Number of Events',
-          attribute = att_getter( "r_%s_%s"%(method, corr_level) ),
+          name = "R_%s_%s"%(method, args.version),
+          texX = '%s R_{%s}'%(args.version, method), texY = 'Number of Events',
+          attribute = att_getter( "r_%s"%method ),
+          stack = stack_,
           binning=[100,0,3],
+          weight = make_weight( ptll_bin = (30, -1), abs_eta_bin = (0, 1.3), is_finite = [ "r_%s"%method ] ),
       ))
-
-      # response profile wrt nvert
-      profiles1D.append(Plot(
-        name = 'r_%s_%s_profile_nvtx'%(method, corr_level), 
-        texX = 'vertex multiplicity', 
-        texY = '%s R_{%s}'%(corr_level, method),
-        histo_class = ROOT.TProfile,
-        stack = stack_profile,
-        attribute = (
-            att_getter( "nVert" ),
-            att_getter( "r_%s_%s"%(method, corr_level) ),
-        ),
-        binning = [50,0,50],
-        weight = make_weight( ptll_bin = (30, -1), abs_eta_bin = (0, 1.3) ),
-      ))
-      profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string((0, 1.3)))]
-
-      # response profile vs dl_pt
-      for abs_eta_bin in abs_eta_bins:
-          profiles1D.append(Plot(
-            name = 'r_%s_%s_profile_ptll_for_eta_%3.2f_%3.2f'%( ( method, corr_level ) + abs_eta_bin ), 
-            texX = 'p_{T}(ll) (GeV)', 
-            texY = '%s R_{%s}'%(corr_level, method),
-            histo_class = ROOT.TProfile,
-            stack = stack_profile,
-            attribute = (
-                "dl_pt",
-                att_getter( "r_%s_%s"%(method, corr_level) ),
-            ),
-            binning = Binning.fromThresholds(ptll_thresholds),
-            weight = make_weight( abs_eta_bin = abs_eta_bin ),
-          ))
-          profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string(abs_eta_bin))]
+      plots[-1].subdir = "response_plots"
 
       # response profile vs eta
       for ptll_bin in ptll_bins:
-          profiles1D.append(Plot(
-            name = 'r_%s_%s_profile_jet_eta_for_dlpt_%i_%i'%( ( method, corr_level ) +  ptll_bin ), 
-            texX = '#eta (jet)', 
-            texY = '%s R_{%s}'%( corr_level, method),
-            histo_class = ROOT.TProfile,
-            stack = stack_profile,
-            attribute = (
-                att_getter( "leading_jet", 'eta' ),
-                att_getter( "r_%s_%s"%(method, corr_level) ),
-            ),
-            binning = [26,-5.2,5.2],
-            weight = make_weight( ptll_bin = ptll_bin ),
-          ))
-          profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin))]
+        profiles1D.append(Plot(
+          name = 'r_%s_%s_profile_jet_eta_for_dlpt_%i_%i'%( ( method, args.version ) +  ptll_bin ), 
+          texX = '#eta (jet)', 
+          texY = '%s R_{%s}'%( args.version, method),
+          histo_class = ROOT.TProfile,
+          stack = stack_profile_,
+          attribute = (
+              att_getter( "leading_jet", 'eta' ),
+              att_getter( "r_%s"%method ),
+          ),
+          binning = [26,-5.2,5.2],
+          weight = make_weight( ptll_bin = ptll_bin, alpha_passed = "alpha_%s_passed"%alpha, is_finite = [ "r_%s"%method ] ),
+        ))
+        profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, "#alpha<%2.1f"% ( float(alpha)/100.)) ]
+        for_comparison_pt[ptll_bin][alpha][method] = profiles1D[-1]
 
       # response profile wrt nvert, binned in pT and eta
-      for abs_eta_bin in abs_eta_bins:
-          for ptll_bin in ptll_bins:
+      for abs_eta_bin in coarse_abs_eta_bins:
+          for ptll_bin in coarse_ptll_bins:
               profiles1D.append(Plot(
-                name = 'r_%s_%s_profile_nvtx_dlpt_%i_%i_eta_%3.2f_%3.2f'% ( (method, corr_level) + ptll_bin + abs_eta_bin ), 
+                name = ('r_%s_%s_profile_nvtx_dlpt_%i_%i_eta_%4.3f_%4.3f'% ( (method, args.version) + ptll_bin + abs_eta_bin )).replace('.',''), 
                 texX = 'vertex multiplicity', 
-                texY = '%s R_{%s}'%(corr_level, method),
+                texY = '%s R_{%s}'%(args.version, method),
                 histo_class = ROOT.TProfile,
-                stack = stack_profile,
+                stack = stack_profile_,
                 attribute = (
                     att_getter( "nVert" ),
-                    att_getter( "r_%s_%s"%(method, corr_level) ),
+                    att_getter( "r_%s"%method ),
                 ),
                 binning = [50,0,50],
-                weight = make_weight( ptll_bin = ptll_bin, abs_eta_bin = abs_eta_bin ),
+                weight = make_weight( ptll_bin = ptll_bin, abs_eta_bin = abs_eta_bin, is_finite = [ "r_%s"%method ] ),
               ))
-              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin))]
+              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3f") ]
+              profiles1D[-1].subdir = "response_nvtx"
+
+      # response, binned in pT and eta 
+      for abs_eta_bin in abs_eta_bins:
+          for ptll_bin in ptll_bins:
+              plots.append(Plot(
+                  name = ( "R_%s_%s_dlpt_%i_%i_eta_%4.3f_%4.3f"%( (method, args.version) + ptll_bin + abs_eta_bin )).replace('.',''),
+                  texX = '%s R_{%s}'%(args.version, method), texY = 'Number of Events',
+                  attribute = att_getter( "r_%s"%method ),
+                  stack = stack_,
+                  binning=[100,0,3],
+                  weight = make_weight( ptll_bin = ptll_bin, abs_eta_bin = abs_eta_bin, is_finite = [ "r_%s"%method ] ),
+              ))
+              plots[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3f") ]
+              plots[-1].subdir = "response_plots"
 
 
-plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence )
+plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence, max_events = 10000 if args.small else -1)
 
 # Get normalization yields from yield histogram
 for plot in plots:
@@ -782,3 +869,60 @@ dataMCScale        = yields[args.mode]["data"]/yields[args.mode]["MC"] if yields
 draw1DPlots(    plots,      args.mode, dataMCScale )
 draw1DProfiles( profiles1D, args.mode, dataMCScale )
 draw2DPlots(    plots2D,    args.mode, dataMCScale )
+
+if not args.skipOtherPlots:
+    for alpha in alphas:
+        for abs_eta_bin in abs_eta_bins:
+          cp = for_comparison_eta[abs_eta_bin][alpha]['mpf']
+
+          cp.histos += for_comparison_eta[abs_eta_bin][alpha]['mpfNoType1'].histos[:1]
+          cp.stack  += for_comparison_eta[abs_eta_bin][alpha]['mpfNoType1'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kBlue, dashed = True ) 
+          cp.histos[-1][0].legendText = "R_{mpf} raw" 
+
+          cp.histos += for_comparison_eta[abs_eta_bin][alpha]['gen'].histos 
+          cp.stack  += for_comparison_eta[abs_eta_bin][alpha]['gen'].stack 
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kRed ) 
+          cp.histos[-1][0].legendText = "generated" 
+
+          cp.histos += for_comparison_eta[abs_eta_bin][alpha]['ptbal'].histos[:1]
+          cp.stack  += for_comparison_eta[abs_eta_bin][alpha]['ptbal'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen ) 
+          cp.histos[-1][0].legendText = "R_{ptbal}" 
+
+          cp.histos += for_comparison_eta[abs_eta_bin][alpha]['ptbalRaw'].histos[:1]
+          cp.stack  += for_comparison_eta[abs_eta_bin][alpha]['ptbalRaw'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen, dashed = True ) 
+          cp.histos[-1][0].legendText = "raw R_{ptbal}" 
+
+          cp.name = ('comparison_%s_a%s_profile_pt_for_eta_%4.3f_%4.3f'% ( (args.version, alpha) +  abs_eta_bin ) ).replace('.','')
+          cp.drawObjects = [(0.2, 0.8, abs_eta_string(abs_eta_bin)), (0.2,0.75, "#alpha<%2.1f"% ( float(alpha)/100.) )]
+          draw1DProfiles(  [cp] , args.mode, dataMCScale )
+
+        for ptll_bin in ptll_bins:
+          cp = for_comparison_pt[ptll_bin][alpha]['mpf']
+
+          cp.histos += for_comparison_pt[ptll_bin][alpha]['mpfNoType1'].histos[:1]
+          cp.stack += for_comparison_pt[ptll_bin][alpha]['mpfNoType1'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kBlue, dashed=True ) 
+          cp.histos[-1][0].legendText = "R_{mpf} raw"
+
+          cp.histos += for_comparison_pt[ptll_bin][alpha]['gen'].histos 
+          cp.stack += for_comparison_pt[ptll_bin][alpha]['gen'].stack 
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kBlack ) 
+          cp.histos[-1][0].legendText = "generated"
+
+          cp.histos += for_comparison_pt[ptll_bin][alpha]['ptbal'].histos[:1]
+          cp.stack += for_comparison_pt[ptll_bin][alpha]['ptbal'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen ) 
+          cp.histos[-1][0].legendText = "R_{ptbal}" 
+
+          cp.histos += for_comparison_pt[ptll_bin][alpha]['ptbalRaw'].histos[:1]
+          cp.stack += for_comparison_pt[ptll_bin][alpha]['ptbalRaw'].stack[:1]
+          cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen, dashed = True ) 
+          cp.histos[-1][0].legendText = "raw R_{ptbal}" 
+
+          cp.name = 'comparison_%s_a%s_profile_jet_eta_for_dlpt_%i_%i'% ( (args.version, alpha) +  ptll_bin ) 
+          cp.drawObjects = [(0.2, 0.8, dl_pt_string(ptll_bin)), (0.2,0.75, "#alpha<%2.1f"% ( float(alpha)/100.) )]
+
+          draw1DProfiles(  [cp] , args.mode, dataMCScale )

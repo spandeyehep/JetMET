@@ -24,7 +24,8 @@ import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging")
 argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?', )
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L1closure')
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/closure')
+argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
 args = argParser.parse_args()
 
 #
@@ -35,30 +36,39 @@ import RootTools.core.logger as logger_rt
 logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
+# JEC on the fly, tarball configuration
+from JetMET.JetCorrector.JetCorrector import JetCorrector
 
-# JEC on the fly
-from JetMET.JetCorrector.jetCorrectors_Spring16 import jetCorrector_data, jetCorrector_mc
+# JetCorrector config
+Summer16_23Sep2016_DATA = \
+[(1,      'Summer16_23Sep2016BCD%s_DATA'%args.version),
+ (276831, 'Summer16_23Sep2016EF%s_DATA'%args.version),
+ (278802, 'Summer16_23Sep2016G%s_DATA'%args.version),
+ (280919, 'Summer16_23Sep2016H%s_DATA'%args.version)]
 
-# pT_corr = pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw))*L2L3Res(pT_raw*L1(pT_raw)*L2L3(pT_raw*L1(pT_raw)))
-jetCorrector_L1MC          = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet'] )
-jetCorrector_L1Data        = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet'] )
-jetCorrector_L1L2L3MC      = jetCorrector_mc.reduceLevels(correctionLevels   = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-jetCorrector_L1L2L3Data    = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] ) 
-jetCorrector_L1L2L3ResData = jetCorrector_data.reduceLevels(correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
+Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016%s_MC'%args.version) ]
+
+jetCorrector_L1MC          = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,  correctionLevels = ['L1FastJet'] )
+jetCorrector_L1Data        = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA,correctionLevels = ['L1FastJet'] )
+jetCorrector_L1L2L3MC      = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,  correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] )
+jetCorrector_L1L2L3Data    = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA,correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute'] )
+jetCorrector_L1L2L3ResData = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA,correctionLevels = ['L1FastJet', 'L2Relative', 'L3Absolute', 'L2L3Residual'] )
 
 if args.small: args.plot_directory += "_small"
+
 #
 # Make samples, will be searched for in the postProcessing directory
 #
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v26/dilep/"
-from JetMET.JEC.samples.cmgTuples_Spring16_mAODv2_postProcessed import *
+postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
+from JetMET.JEC.samples.cmgTuples_Summer16_mAODv2_postProcessed import *
 data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
-postProcessing_directory = "postProcessed_80X_v26/dilep"
-from JetMET.JEC.samples.cmgTuples_Data25ns_80X_23Sep_postProcessed import *
+postProcessing_directory = "postProcessed_80X_v37/dilepTiny/"
+from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-selection       = 'ptll30-btb-njet1p-nbtag0'
-selectionString = 'dl_pt>30&&cos(dl_phi-JetGood_phi[0])<-0.5&&nJetGood>=1&&nBTag==0'
+# Analysis selection
+selection       = 'ptll30-njet1p'
+selectionString = 'dl_pt>30&&nJetGood>=1'
 
 #
 # Text on the plots
@@ -173,8 +183,8 @@ def makeJetBalancing( event, sample ):
         corr    = jetCorrector_L1L2L3MC.correction(event.rawPt, event.eta, event.area, event.rho, event.run) 
         corr_L1 = jetCorrector_L1MC.correction(event.rawPt, event.eta, event.area, event.rho, event.run)
 
-    event.deltaPU = event.rawPt*corr*(1-1./corr_L1)
-    event.deltaPUPerArea    =   event.deltaPU/event.area
+    event.deltaPU           = event.rawPt*corr*(1-1./corr_L1)
+    event.deltaPUPerArea    = event.deltaPU/event.area
 
     if event.rho>0:
         event.deltaPUPerRho     =   event.deltaPU/event.rho 
@@ -195,7 +205,7 @@ def makeJetBalancing( event, sample ):
 
 sequence.append( makeJetBalancing )
 
-z_window = 7
+z_window = 10
 def getLeptonSelection( mode ):
   if   mode=="mumu": return "nGoodMuons==2&&nGoodElectrons==0&&isOS&&isMuMu&&abs(dl_mass-91.2)<%f" % z_window
   elif mode=="ee":   return "nGoodMuons==0&&nGoodElectrons==2&&isOS&&isEE&&abs(dl_mass-91.2)<%f" % z_window
@@ -220,8 +230,7 @@ for index, mode in enumerate(allModes):
 
   weight_ = lambda event, sample: event.weight
 
-  #mc             = [DY_HT_LO] + [ Top_pow, TTZ_LO, TTXNoZ, multiBoson]
-  DY_sample = DY_HT_LO
+  DY_sample = DYnJets
   other_mc = Sample.combine( name = "other_mc", texName = "VV/VVV/TTX/tZq/tWZ", samples = [TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kMagenta )
   all_mc   = Sample.combine( name = "all_mc",   texName = "simulation", samples = [DY_sample, Top_pow, TTZ_LO, TTXNoZ, multiBoson], color = ROOT.kBlue )
   mc             = [DY_sample, Top_pow, other_mc]
