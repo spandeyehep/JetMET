@@ -32,8 +32,8 @@ argParser.add_argument('--noL1'       ,                             action='stor
 argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
 argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
-argParser.add_argument('--era',                action='store',      default='inclusive',     choices = ['inclusive', 'Run2016BCD', 'Run2016EF', 'Run2016G', 'Run2016H'], help="Run era?")
-argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res',     help="subdirectory for plots")
+argParser.add_argument('--era',                action='store',      default='Run2016FlateG', choices = ['inclusive', 'Run2016BCD', 'Run2016EFearly', 'Run2016FlateG', 'Run2016H'], help="Run era?")
+argParser.add_argument('--plot_directory',     action='store',      default='JEC/L3res_new', help="subdirectory for plots")
 args = argParser.parse_args()
 
 #
@@ -91,12 +91,15 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v38/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
+test_data = Sample.fromFiles("data", files=["/afs/hephy.at/data/rschoefbeck02/cmgTuples/./inclusiveTiny/data/data_0.root"] ) 
+test_data.isData = True
+
 selection       = 'ptll%s-njet1p' % args.minptll
 selectionString = 'dl_pt>%s&&Sum$(JetGood_pt>10 && JetGood_id)>=1' % args.minptll 
 if args.btb:
     selection+='-btb'
     selectionString += '&&cos(dl_phi - JetGood_phi[0])<-0.5'
-
+selectionString = 'Sum$(JetGood_pt>10 && JetGood_id)>=1' #FIXME
 # pt and thresholds
 from JetMET.JEC.L3res.thresholds import ptll_thresholds, ptll_bins, abs_eta_bins, coarse_ptll_bins, coarse_abs_eta_bins, L2res_abs_eta_bins
 
@@ -229,7 +232,7 @@ def abs_eta_string( b ):
 #
 # Read variables and sequences
 #
-read_variables = ["run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l1_dxy/F", "l2_eta/F", "l2_phi/F", "l2_dxy/F", "rho/F", 
+read_variables = ["evt/l", "run/I", "weight/F", "l1_eta/F" , "l1_phi/F", "l1_dxy/F", "l2_eta/F", "l2_phi/F", "l2_dxy/F", "rho/F", 
                   "dl_mass/F", "dl_eta/F", "dl_pt/F","dl_phi/F",
                   "met_chsPt/F", "met_chsPhi/F", "metSig/F", "ht/F", "nBTag/I", "nJetGood/I", 'nVert/I']
 sequence = []
@@ -264,8 +267,6 @@ def makeL3ResObservables( event, sample ):
     good_jets = getJets( event, jetColl="JetGood", jetVars = jetVars)
 
     for j in good_jets:
-        # Raw correction level
-        j['pt_raw']  = j['rawPt']
         # 'Corr' correction level: L1L2L3 L2res
         if sample.isData:
             jet_corr_factor    =  jetCorrector_data.   correction( j['rawPt'], j['eta'], j['area'], event.rho, event.run )
@@ -296,7 +297,7 @@ def makeL3ResObservables( event, sample ):
     type1_met_shifts = \
                 {'px' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']) for j in good_jets), 
                  'py' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi']) for j in good_jets) } 
-    
+
     # leading jet
     event.leading_jet    = good_jets[0]
     # subleading jet
@@ -316,7 +317,16 @@ def makeL3ResObservables( event, sample ):
 
     chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
     chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
-
+    if sample.isData: #FIXME
+        print "evt", event.evt
+        for i, j in enumerate(good_jets):
+            print "jet", i, "pt(raw)", j['rawPt'], "pt(L1L2L3)", j['pt_corr'], "pt(L1RC)", j['pt_corr_RC'], "phi", cos(j['phi'])
+            print "cont. to type1 from jet ", i, ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']), "py", ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi'])
+        print "type1 shifts", type1_met_shifts['px'], type1_met_shifts['py'] 
+        print "raw chs met: pt", event.met_chsPt, 'phi', event.met_chsPhi
+        print "type1 chs met: px", chs_MEx_corr, 'py', chs_MEy_corr 
+        print "             : pt",chs_MEt_corr,"phi",chs_MEphi_corr 
+        print 
     setattr( event, "met_chsPt_type1",  chs_MEt_corr )
     setattr( event, "met_chsPhi_type1", chs_MEphi_corr )
 
@@ -332,6 +342,7 @@ def makeL3ResObservables( event, sample ):
     # gen 
     if not sample.isData and event.leading_jet['mcPt']>0:
         event.r_gen    = event.leading_jet['pt_corr']/event.leading_jet['mcPt']
+        #event.r_gen    = event.leading_jet['pt']/event.leading_jet['mcPt']
     else:
         event.r_gen    = None 
 
@@ -375,14 +386,14 @@ if   args.mode=="mumu":
     elif args.era == "Run2016BCD":
         data = DoubleMuon_Run2016BCD_backup
         runrange = None
-    elif args.era == "Run2016EF":
-        data = DoubleMuon_Run2016EF_backup #F early
+    elif args.era == "Run2016EFearly":
+        data = DoubleMuon_Run2016EFearly_backup #F early
         runrange = "run<=278801"
-    elif args.era == "Run2016GH":
-        data = DoubleMuon_Run2016GH_backup # contains also F for Flate
+    elif args.era == "Run2016FlateGH":
+        data = DoubleMuon_Run2016FlateGH_backup # contains also F for Flate
         runrange = "run>=278802" 
-    elif args.era == "Run2016G":
-        data = DoubleMuon_Run2016G_backup # contains also F for Flate
+    elif args.era == "Run2016FlateG":
+        data = DoubleMuon_Run2016FlateG_backup # contains also F for Flate
         runrange = "run>=278802" 
     elif args.era == "Run2016H":
         data = DoubleMuon_Run2016H_backup
@@ -398,14 +409,14 @@ elif args.mode=="ee":
     elif args.era == "Run2016BCD":
         data = DoubleEG_Run2016BCD_backup
         runrange = None
-    elif args.era == "Run2016EF":
-        data = DoubleEG_Run2016EF_backup # F early
+    elif args.era == "Run2016EFearly":
+        data = DoubleEG_Run2016EFearly_backup # F early
         runrange = "run<=278801"
-    elif args.era == "Run2016GH":
-        data = DoubleEG_Run2016GH_backup # contains also F for Flate
+    elif args.era == "Run2016FlateGH":
+        data = DoubleEG_Run2016FlateGH_backup # contains also F for Flate
         runrange = "run>=278802" 
-    elif args.era == "Run2016G":
-        data = DoubleEG_Run2016G_backup # contains also F for Flate
+    elif args.era == "Run2016FlateG":
+        data = DoubleEG_Run2016FlateG_backup # contains also F for Flate
         runrange = "run>=278802" 
     elif args.era == "Run2016H":
         data = DoubleEG_Run2016H_backup
@@ -413,6 +424,9 @@ elif args.mode=="ee":
 
     data.texName = "data (2 e)"
     index = 1
+
+data = test_data #FIXME 
+data.lumi=1
 
 yields     = {}
 allPlots   = {}
@@ -424,11 +438,12 @@ if runrange is not None:
 
 logger.info( "Set data selectionstring: %s", "&&".join(data_selection) )
 
-data.setSelectionString( data_selection )
+#data.setSelectionString( data_selection ) #FIXME
 data.name           = "data"
 data.style          = styles.errorStyle(ROOT.kBlack)
 data.weight         = weight_data 
 data.read_variables = [ "JetGood[pt/F,eta/F,phi/F,area/F,btagCSV/F,rawPt/F]" ]
+#data.read_variables += [ "photon[pt/F,eta/F,phi/F]", "nPhotonGood/I" ]
 
 lumi_scale          = data.lumi/1000
 
@@ -761,7 +776,7 @@ for_comparison_eta = {abs_eta_bin:{alpha:{} for alpha in alphas } for abs_eta_bi
 for_comparison_pt  = {ptll_bin:   {alpha:{} for alpha in alphas } for ptll_bin    in ptll_bins}
 
 methods = ['ptbal', 'mpf',  'mpfNoType1']
-if not args.skipOtherPlots: methpds += ['ptbalRaw', 'gen']
+if not args.skipOtherPlots: methods += ['ptbalRaw', 'gen']
 
 for method in methods: 
 
@@ -787,7 +802,8 @@ for method in methods:
       profiles1D[-1].drawObjects = [(0.5, 0.76, abs_eta_string(abs_eta_bin)), (0.5, 0.71, "#alpha<%2.1f"% ( float(alpha)/100.)) ]
       for_comparison_eta[abs_eta_bin][alpha][method] = profiles1D[-1]
 
-  if not args.skipOtherPlots:
+    if not args.skipOtherPlots:
+
       # inclusive response
       plots.append(Plot(
           name = "R_%s_%s"%(method, args.version),
@@ -833,7 +849,7 @@ for method in methods:
                 binning = [50,0,50],
                 weight = make_weight( ptll_bin = ptll_bin, abs_eta_bin = abs_eta_bin, is_finite = [ "r_%s"%method ] ),
               ))
-              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3f") ]
+              profiles1D[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3") ]
               profiles1D[-1].subdir = "response_nvtx"
 
       # response, binned in pT and eta 
@@ -847,11 +863,11 @@ for method in methods:
                   binning=[100,0,3],
                   weight = make_weight( ptll_bin = ptll_bin, abs_eta_bin = abs_eta_bin, is_finite = [ "r_%s"%method ] ),
               ))
-              plots[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3f") ]
+              plots[-1].drawObjects = [(0.5, 0.76, dl_pt_string(ptll_bin)), (0.5, 0.71, abs_eta_string(abs_eta_bin)), (0.5, 0.66, "#alpha<0.3") ]
               plots[-1].subdir = "response_plots"
 
 
-plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence, max_events = 10000 if args.small else -1)
+plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence, max_events = 5000 if args.small else -1) #FIXME
 
 # Get normalization yields from yield histogram
 for plot in plots:
@@ -903,7 +919,7 @@ if not args.skipOtherPlots:
           cp = for_comparison_pt[ptll_bin][alpha]['mpf']
 
           cp.histos += for_comparison_pt[ptll_bin][alpha]['mpfNoType1'].histos[:1]
-          cp.stack += for_comparison_pt[ptll_bin][alpha]['mpfNoType1'].stack[:1]
+          cp.stack  += for_comparison_pt[ptll_bin][alpha]['mpfNoType1'].stack[:1]
           cp.histos[-1][0].style      = styles.lineStyle( ROOT.kBlue, dashed=True ) 
           cp.histos[-1][0].legendText = "R_{mpf} raw"
 
@@ -913,12 +929,12 @@ if not args.skipOtherPlots:
           cp.histos[-1][0].legendText = "generated"
 
           cp.histos += for_comparison_pt[ptll_bin][alpha]['ptbal'].histos[:1]
-          cp.stack += for_comparison_pt[ptll_bin][alpha]['ptbal'].stack[:1]
+          cp.stack  += for_comparison_pt[ptll_bin][alpha]['ptbal'].stack[:1]
           cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen ) 
           cp.histos[-1][0].legendText = "R_{ptbal}" 
 
           cp.histos += for_comparison_pt[ptll_bin][alpha]['ptbalRaw'].histos[:1]
-          cp.stack += for_comparison_pt[ptll_bin][alpha]['ptbalRaw'].stack[:1]
+          cp.stack  += for_comparison_pt[ptll_bin][alpha]['ptbalRaw'].stack[:1]
           cp.histos[-1][0].style      = styles.lineStyle( ROOT.kGreen, dashed = True ) 
           cp.histos[-1][0].legendText = "raw R_{ptbal}" 
 

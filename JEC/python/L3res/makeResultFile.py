@@ -34,7 +34,7 @@ logger    = logger.get_logger(   args.logLevel, logFile = None)
 logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 
 # pt and thresholds
-from JetMET.JEC.L3res.thresholds import ptll_bins, abs_eta_bins
+from JetMET.JEC.L3res.thresholds import ptll_bins, abs_eta_bins, L2res_abs_eta_bins
 
 if not args.outputFile:
     args.outputFile = os.path.join( args.inputDir, "L3res.root" )
@@ -98,7 +98,7 @@ logger.info( "Reading %s", args.inputDir )
 stuff = []
 
 # Eta binned TGraphs vs. pt
-for abs_eta_bin in abs_eta_bins:
+for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
     ptll_vs_ptll_file = os.path.join( args.inputDir, ( 'ptll_profile_ptll_for_eta_%4.3f_%4.3f'%( abs_eta_bin ) ).replace( '.','')+'.root' )
    
     ptll_mc, ptll_data = getProfiles(ptll_vs_ptll_file)

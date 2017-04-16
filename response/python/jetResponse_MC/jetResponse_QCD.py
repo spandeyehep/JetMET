@@ -26,8 +26,8 @@ argParser.add_argument('--logLevel',
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-max_events = 4000000
-max_files = 30 
+max_events = 10000
+max_files = 1 
 
 #new       = FWLiteSample.fromDAS("new"      , "/RelValTTbar_13/CMSSW_8_0_21-PU25ns_80X_mcRun2_asymptotic_2016_TrancheIV_v6_Tr4GT_v6-v1/MINIAODSIM")
 #old       = FWLiteSample.fromDAS("old"      , "/RelValTTbar_13/CMSSW_8_0_20-PU25ns_80X_mcRun2_asymptotic_2016_TrancheIV_v2_Tr4GT_v2-v1/MINIAODSIM")
@@ -77,7 +77,6 @@ for sample in [new, old]:
                         resp[sample.name][eta_th].Fill( gj.pt(), j.pt() / gj.pt() )
                         #print eta_th, gj.eta(), j.pt(), gj.pt()
                         break
-
         i+=1
         if i>max_events: break
 

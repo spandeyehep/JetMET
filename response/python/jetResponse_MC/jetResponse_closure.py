@@ -26,10 +26,16 @@ argParser.add_argument('--logLevel',
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-max_events = 300000
+max_events = 1000000
 max_files = 20
 
-sample = FWLiteSample.fromDAS("sample"      , "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-PUFlat0to70_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v1/MINIAODSIM", maxN = max_files)
+sample = FWLiteSample.fromDAS("sample", "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-PUFlat0to70_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v1/MINIAODSIM", maxN = max_files)
+
+# JEC on the fly, tarball configuration
+from JetMET.JetCorrector.JetCorrector import JetCorrector
+
+Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016V6_MC')]
+jetCorrector_mc       = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ] )
 
 preprefix = "QCD_Summer16"
 
@@ -50,6 +56,7 @@ for i_eta_th, eta_th in enumerate(eta_thresholds):
 products = {
     'jets':      {'type':'vector<pat::Jet>', 'label':("slimmedJets")},
     'genInfo':   {'type':' GenEventInfoProduct', 'label': "generator"},
+    'rho':       {'type':'double', 'label':"fixedGridRhoFastjetAll"},
     }
 
 r1 = sample.fwliteReader( products = products )
@@ -64,9 +71,12 @@ while r1.run():
     for j in id_jets:
         gj = j.genJet()
         if gj:
+
+            jet_corr_factor =  jetCorrector_mc.correction( j.pt(), j.eta(), j.jetArea(), r1.products['rho'][0], 1 ) 
+
             for eta_th in reversed(eta_thresholds):
                 if abs(gj.eta())>eta_th:
-                    resp[eta_th].Fill( gj.pt(), j.pt() / gj.pt() )
+                    resp[eta_th].Fill( gj.pt(), j.pt()*jet_corr_factor / gj.pt() )
                     #print eta_th, gj.eta(), j.pt(), gj.pt()
                     break
 

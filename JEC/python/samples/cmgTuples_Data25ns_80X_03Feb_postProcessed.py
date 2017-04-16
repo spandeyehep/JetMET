@@ -30,9 +30,9 @@ def merge(pd, totalRunName, listOfRuns):
 for pd in ['DoubleEG','DoubleMuon','MuonEG']:
   merge(pd, 'Run2016BCD',    ['Run2016B_v2', 'Run2016C', 'Run2016D'])
   merge(pd, 'Run2016BCDEFG', ['Run2016BCD', 'Run2016E', 'Run2016F', 'Run2016G'])
-  merge(pd, 'Run2016EF', ['Run2016E', 'Run2016F'])  #E Fearly
-  merge(pd, 'Run2016GH', ['Run2016F', 'Run2016G', 'Run2016H_v2', 'Run2016H_v3']) #Flate+GH
-  merge(pd, 'Run2016G', ['Run2016F', 'Run2016G']) #Flate+G
+  merge(pd, 'Run2016EFearly', ['Run2016E', 'Run2016F'])  #E Fearly
+  merge(pd, 'Run2016FlateGH', ['Run2016F', 'Run2016G', 'Run2016H_v2', 'Run2016H_v3']) #Flate+GH
+  merge(pd, 'Run2016FlateG', ['Run2016F', 'Run2016G']) #Flate+G
   merge(pd, 'Run2016H', ['Run2016H_v2', 'Run2016H_v3']) #H
   merge(pd, 'Run2016',       ['Run2016BCDEFG', 'Run2016H_v2', 'Run2016H_v3'])
 
@@ -45,39 +45,41 @@ def getSample(pd, runName, lumi):
   sample.lumi = lumi
   return sample
 
-DoubleEG_Run2016BCD_backup      = getSample('DoubleEG',   'Run2016BCD',    (5.744+2.573+4.248)*1000)
-DoubleMuon_Run2016BCD_backup    = getSample('DoubleMuon', 'Run2016BCD',    (5.744+2.573+4.248)*1000)  
-MuonEG_Run2016BCD_backup        = getSample('MuonEG',     'Run2016BCD',    (5.743+2.573+4.248)*1000) 
+DoubleEG_Run2016BCD_backup       = getSample('DoubleEG',   'Run2016BCD',    (5.744+2.573+4.248)*1000)
+DoubleMuon_Run2016BCD_backup     = getSample('DoubleMuon', 'Run2016BCD',    (5.744+2.573+4.248)*1000)  
+MuonEG_Run2016BCD_backup         = getSample('MuonEG',     'Run2016BCD',    (5.743+2.573+4.248)*1000) 
 
-DoubleEG_Run2016BCDEFG_backup   = getSample('DoubleEG',   'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
-DoubleMuon_Run2016BCDEFG_backup = getSample('DoubleMuon', 'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
-MuonEG_Run2016BCDEFG_backup     = getSample('MuonEG',     'Run2016BCDEFG', (5.743+2.573+4.248+4.009+3.101+7.540)*1000)
+DoubleEG_Run2016BCDEFG_backup    = getSample('DoubleEG',   'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
+DoubleMuon_Run2016BCDEFG_backup  = getSample('DoubleMuon', 'Run2016BCDEFG', (5.744+2.573+4.248+4.009+3.101+7.540)*1000)
+MuonEG_Run2016BCDEFG_backup      = getSample('MuonEG',     'Run2016BCDEFG', (5.743+2.573+4.248+4.009+3.101+7.540)*1000)
 
 #Fearly 2.666, Flate 0.397 according to brilcalc
-DoubleEG_Run2016EF_backup   = getSample('DoubleEG',   'Run2016EF', (4.009+3.101-0.397)*1000)
-DoubleMuon_Run2016EF_backup = getSample('DoubleMuon', 'Run2016EF', (4.009+3.101-0.397)*1000)
-MuonEG_Run2016EF_backup     = getSample('MuonEG',     'Run2016EF', (4.009+3.101-0.397)*1000)
+DoubleEG_Run2016EFearly_backup   = getSample('DoubleEG',   'Run2016EFearly', (4.009+3.101-0.397)*1000)
+DoubleMuon_Run2016EFearly_backup = getSample('DoubleMuon', 'Run2016EFearly', (4.009+3.101-0.397)*1000)
+MuonEG_Run2016EFearly_backup     = getSample('MuonEG',     'Run2016EFearly', (4.009+3.101-0.397)*1000)
 
-DoubleEG_Run2016GH_backup   = getSample('DoubleEG',   'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
-DoubleMuon_Run2016GH_backup = getSample('DoubleMuon', 'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
-MuonEG_Run2016GH_backup     = getSample('MuonEG',     'Run2016GH', (0.397+7.540+8.329+0.210)*1000)
+DoubleEG_Run2016FlateGH_backup   = getSample('DoubleEG',   'Run2016FlateGH', (0.397+7.540+8.329+0.210)*1000)
+DoubleMuon_Run2016FlateGH_backup = getSample('DoubleMuon', 'Run2016FlateGH', (0.397+7.540+8.329+0.210)*1000)
+MuonEG_Run2016FlateGH_backup     = getSample('MuonEG',     'Run2016FlateGH', (0.397+7.540+8.329+0.210)*1000)
 
-DoubleEG_Run2016G_backup   = getSample('DoubleEG',   'Run2016G', (0.397+7.540)*1000)
-DoubleMuon_Run2016G_backup = getSample('DoubleMuon', 'Run2016G', (0.397+7.540)*1000)
-MuonEG_Run2016G_backup     = getSample('MuonEG',     'Run2016G', (0.397+7.540)*1000)
+DoubleEG_Run2016FlateG_backup    = getSample('DoubleEG',   'Run2016FlateG', (0.397+7.540)*1000)
+DoubleMuon_Run2016FlateG_backup  = getSample('DoubleMuon', 'Run2016FlateG', (0.397+7.540)*1000)
+MuonEG_Run2016FlateG_backup      = getSample('MuonEG',     'Run2016FlateG', (0.397+7.540)*1000)
 
-DoubleEG_Run2016H_backup   = getSample('DoubleEG',   'Run2016H', (8.329+0.210)*1000)
-DoubleMuon_Run2016H_backup = getSample('DoubleMuon', 'Run2016H', (8.329+0.210)*1000)
-MuonEG_Run2016H_backup     = getSample('MuonEG',     'Run2016H', (8.329+0.210)*1000)
+DoubleEG_Run2016H_backup         = getSample('DoubleEG',   'Run2016H', (8.329+0.210)*1000)
+DoubleMuon_Run2016H_backup       = getSample('DoubleMuon', 'Run2016H', (8.329+0.210)*1000)
+MuonEG_Run2016H_backup           = getSample('MuonEG',     'Run2016H', (8.329+0.210)*1000)
 
-DoubleEG_Run2016_backup         = getSample('DoubleEG',   'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
-DoubleMuon_Run2016_backup       = getSample('DoubleMuon', 'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
-MuonEG_Run2016_backup           = getSample('MuonEG',     'Run2016',       (5.743+2.573+4.248+4.009+3.101+7.540+8.327+0.210)*1000)
+DoubleEG_Run2016_backup          = getSample('DoubleEG',   'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
+DoubleMuon_Run2016_backup        = getSample('DoubleMuon', 'Run2016',       (5.744+2.573+4.248+4.009+3.101+7.540+8.329+0.210)*1000)
+MuonEG_Run2016_backup            = getSample('MuonEG',     'Run2016',       (5.743+2.573+4.248+4.009+3.101+7.540+8.327+0.210)*1000)
 
 allSamples_Data25ns = []
 allSamples_Data25ns += [DoubleMuon_Run2016BCD_backup,    DoubleEG_Run2016BCD_backup,    MuonEG_Run2016BCD_backup]
-allSamples_Data25ns += [DoubleMuon_Run2016EF_backup,     DoubleEG_Run2016EF_backup,     MuonEG_Run2016EF_backup]
-allSamples_Data25ns += [DoubleMuon_Run2016GH_backup,     DoubleEG_Run2016GH_backup,     MuonEG_Run2016GH_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016EFearly_backup,DoubleEG_Run2016EFearly_backup,MuonEG_Run2016EFearly_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016FlateGH_backup,DoubleEG_Run2016FlateGH_backup,MuonEG_Run2016FlateGH_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016FlateG_backup, DoubleEG_Run2016FlateG_backup, MuonEG_Run2016FlateG_backup]
+allSamples_Data25ns += [DoubleMuon_Run2016H_backup,      DoubleEG_Run2016H_backup,      MuonEG_Run2016H_backup]
 allSamples_Data25ns += [DoubleMuon_Run2016BCDEFG_backup, DoubleEG_Run2016BCDEFG_backup, MuonEG_Run2016BCDEFG_backup]
 allSamples_Data25ns += [DoubleMuon_Run2016_backup,       DoubleEG_Run2016_backup,       MuonEG_Run2016_backup]
 
