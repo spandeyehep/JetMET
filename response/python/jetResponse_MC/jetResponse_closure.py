@@ -26,7 +26,7 @@ argParser.add_argument('--logLevel',
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-max_events = 1000000
+max_events = 300000
 max_files = 20
 
 sample = FWLiteSample.fromDAS("sample", "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-PUFlat0to70_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v1/MINIAODSIM", maxN = max_files)
@@ -70,7 +70,7 @@ while r1.run():
     id_jets = [ j.correctedJet("Uncorrected") for j in r1.products['jets'] if helpers.jetID( j )]
     for j in id_jets:
         gj = j.genJet()
-        if gj:
+        if gj and helpers.deltaR2({'eta':gj.eta(), 'phi':gj.phi()}, {'eta':j.eta(), 'phi':j.phi()}) < 0.2**2:
 
             jet_corr_factor =  jetCorrector_mc.correction( j.pt(), j.eta(), j.jetArea(), r1.products['rho'][0], 1 ) 
 
