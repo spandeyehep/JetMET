@@ -20,9 +20,10 @@ from JetMET.tools.helpers                import getObjFromFile
 import argparse
 argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
-argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
-argParser.add_argument('--inputDir',           action='store',      default='/afs/hephy.at/user/r/rschoefbeck/www/JEC/L3res_small/V6/DYnJets/Run2016G/mumu_log/ptll30-njet1p/',      help="input directory")
+argParser.add_argument('--version',            action='store',      default='V2',            help='JEC version as postfix to 23Sep2016' )
+argParser.add_argument('--inputDir',           action='store',      default='/afs/hephy.at/user/r/rschoefbeck/www/JEC/L3res_small/V2/DYnJets/Run2016G/mumu_log/ptll30-njet1p/',      help="input directory")
 argParser.add_argument('--outputFile',         action='store',      help="output file. If not present, use <plotDirectory>/L3res.root")
+argParser.add_argument('--addL2resEtaBins',                         action='store_true',     help='Add L2res eta bins.')#, default = True)
 args = argParser.parse_args()
 
 #
@@ -36,8 +37,17 @@ logger_rt = logger_rt.get_logger(args.logLevel, logFile = None)
 # pt and thresholds
 from JetMET.JEC.L3res.thresholds import ptll_bins, abs_eta_bins, L2res_abs_eta_bins
 
+all_abs_eta_bins = abs_eta_bins
+if args.addL2resEtaBins:
+    all_abs_eta_bins += L2res_abs_eta_bins
+
+
 if not args.outputFile:
     args.outputFile = os.path.join( args.inputDir, "L3res.root" )
+else:
+    directory = os.path.dirname(args.outputFile)
+    if not os.path.exists( directory ):
+        os.makedirs( directory )
 
 def getProfiles( fname ):
     f = ROOT.TFile(fname)
@@ -98,7 +108,7 @@ logger.info( "Reading %s", args.inputDir )
 stuff = []
 
 # Eta binned TGraphs vs. pt
-for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
+for abs_eta_bin in all_abs_eta_bins:
     ptll_vs_ptll_file = os.path.join( args.inputDir, ( 'ptll_profile_ptll_for_eta_%4.3f_%4.3f'%( abs_eta_bin ) ).replace( '.','')+'.root' )
    
     ptll_mc, ptll_data = getProfiles(ptll_vs_ptll_file)

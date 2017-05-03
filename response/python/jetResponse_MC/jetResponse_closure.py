@@ -26,8 +26,8 @@ argParser.add_argument('--logLevel',
 args = argParser.parse_args()
 logger = get_logger(args.logLevel, logFile = None)
 
-max_events = 300000
-max_files = 20
+max_events = -1
+max_files = -1
 
 sample = FWLiteSample.fromDAS("sample", "/QCD_Pt-15to7000_TuneCUETP8M1_Flat_13TeV_pythia8/RunIISummer16MiniAODv2-PUFlat0to70_magnetOn_80X_mcRun2_asymptotic_2016_TrancheIV_v4-v1/MINIAODSIM", maxN = max_files)
 

@@ -25,11 +25,12 @@ argParser = argparse.ArgumentParser(description = "Argument parser")
 argParser.add_argument('--logLevel',           action='store',      default='INFO',          nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], help="Log level for logging" )
 argParser.add_argument('--small',                                   action='store_true',     help='Run only on a small subset of the data?')#, default = True)
 argParser.add_argument('--skipOtherPlots',                          action='store_true',     help='Skip all other plots.')#, default = True)
+argParser.add_argument('--addL2resEtaBins',                         action='store_true',     help='Add L2res eta bins.')#, default = True)
 argParser.add_argument('--btb',                                     action='store_true',     help='Require loose back to back requirement wrt leading jet?')
 argParser.add_argument('--minptll',            action='store',      default=30,              type=int, help="minimum dilepton pt")
 argParser.add_argument('--noRes'      ,                             action='store_true',     help='skip application of residual JEC.')
 argParser.add_argument('--noL1'       ,                             action='store_true',     help='skip application of L1 JEC.')
-argParser.add_argument('--version',            action='store',      default='V6',            help='JEC version as postfix to 23Sep2016' )
+argParser.add_argument('--version',            action='store',      default='V2',            help='JEC version as postfix to 03Feb2017' )
 argParser.add_argument('--mode',               action='store',      default='mumu',          choices = ['mumu', 'ee'],      help='Muons or electrons?' )
 argParser.add_argument('--dy',                 action='store',      default='DYnJets',       choices = ['DY_HT_LO', 'DYnJets'],  help='Which DY sample?' )
 argParser.add_argument('--era',                action='store',      default='Run2016FlateG', choices = ['inclusive', 'Run2016BCD', 'Run2016EFearly', 'Run2016FlateG', 'Run2016H'], help="Run era?")
@@ -53,13 +54,13 @@ if args.small: args.plot_directory += "_small"
 from JetMET.JetCorrector.JetCorrector import JetCorrector
 
 # JetCorrector config
-Summer16_23Sep2016_DATA = \
-[(1,      'Summer16_23Sep2016BCD%s_DATA'%args.version),
- (276831, 'Summer16_23Sep2016EF%s_DATA'%args.version),
- (278802, 'Summer16_23Sep2016G%s_DATA'%args.version),
- (280919, 'Summer16_23Sep2016H%s_DATA'%args.version)]
+Summer16_03Feb2017_DATA = \
+[(1,      'Summer16_03Feb2017BCD_%s_DATA'%args.version),
+ (276831, 'Summer16_03Feb2017EF_%s_DATA'%args.version),
+ (278802, 'Summer16_03Feb2017G_%s_DATA'%args.version),
+ (280919, 'Summer16_03Feb2017H_%s_DATA'%args.version)]
 
-Summer16_23Sep2016_MC = [(1, 'Summer16_23Sep2016%s_MC'%args.version) ]
+Summer16_03Feb2017_MC = [(1, 'Summer16_03Feb2017_V1_MC') ]
 
 correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute' , 'L2L3Residual' ] if not args.noRes else [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
@@ -71,15 +72,15 @@ correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
 #MEx += (pT(raw) * L1RC(ptraw) - pT(L1FJ,L2L3))*cos(phi)
 #MEx += pT(raw) * (L1RC(ptraw) - L1FJ(raw)*L2L3 )*cos(phi)
 
-jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = correction_levels_data )
-jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = correction_levels_mc )
+jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_03Feb2017_DATA, correctionLevels = correction_levels_data )
+jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_03Feb2017_MC,   correctionLevels = correction_levels_mc )
 
-jetCorrector_RC_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1RC'] )
-jetCorrector_RC_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1RC'] )
+jetCorrector_RC_data = JetCorrector.fromTarBalls( Summer16_03Feb2017_DATA, correctionLevels = [ 'L1RC'] )
+jetCorrector_RC_mc   = JetCorrector.fromTarBalls( Summer16_03Feb2017_MC,   correctionLevels = [ 'L1RC'] )
 
 if args.noL1:
-    jetCorrector_L1_data = JetCorrector.fromTarBalls( Summer16_23Sep2016_DATA, correctionLevels = [ 'L1FastJet'] )
-    jetCorrector_L1_mc   = JetCorrector.fromTarBalls( Summer16_23Sep2016_MC,   correctionLevels = [ 'L1FastJet'] )
+    jetCorrector_L1_data = JetCorrector.fromTarBalls( Summer16_03Feb2017_DATA, correctionLevels = [ 'L1FastJet'] )
+    jetCorrector_L1_mc   = JetCorrector.fromTarBalls( Summer16_03Feb2017_MC,   correctionLevels = [ 'L1FastJet'] )
 
 #
 # Make samples, will be searched for in the postProcessing directory
@@ -91,23 +92,27 @@ data_directory = "/afs/hephy.at/data/rschoefbeck02/cmgTuples/"
 postProcessing_directory = "postProcessed_80X_v38/dilepTiny/"
 from JetMET.JEC.samples.cmgTuples_Data25ns_80X_03Feb_postProcessed import *
 
-test_data = Sample.fromFiles("data", files=["/afs/hephy.at/data/rschoefbeck02/cmgTuples/./inclusiveTiny/data/data_0.root"] ) 
-test_data.isData = True
+#test_data = Sample.fromFiles("data", files=["/afs/hephy.at/data/rschoefbeck02/cmgTuples/./inclusiveTiny/data/data_0.root"] ) 
+#test_data.isData = True
 
 selection       = 'ptll%s-njet1p' % args.minptll
 selectionString = 'dl_pt>%s&&Sum$(JetGood_pt>10 && JetGood_id)>=1' % args.minptll 
 if args.btb:
     selection+='-btb'
     selectionString += '&&cos(dl_phi - JetGood_phi[0])<-0.5'
+
 selectionString = 'Sum$(JetGood_pt>10 && JetGood_id)>=1' #FIXME
 # pt and thresholds
 from JetMET.JEC.L3res.thresholds import ptll_thresholds, ptll_bins, abs_eta_bins, coarse_ptll_bins, coarse_abs_eta_bins, L2res_abs_eta_bins
 
-#L2res_abs_eta_bins = []
 
-if args.small:
-    ptll_bins = ptll_bins[:1]
-    #abs_eta_bins = abs_eta_bins[:1]
+all_abs_eta_bins = abs_eta_bins
+if args.addL2resEtaBins:
+    all_abs_eta_bins += L2res_abs_eta_bins
+
+#if args.small:
+#    ptll_bins = ptll_bins[:1]
+#    all_abs_eta_bins = all_abs_eta_bins[:1]
 
 # Text on the plots
 #
@@ -317,16 +322,16 @@ def makeL3ResObservables( event, sample ):
 
     chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
     chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
-    if sample.isData: #FIXME
-        print "evt", event.evt
-        for i, j in enumerate(good_jets):
-            print "jet", i, "pt(raw)", j['rawPt'], "pt(L1L2L3)", j['pt_corr'], "pt(L1RC)", j['pt_corr_RC'], "phi", cos(j['phi'])
-            print "cont. to type1 from jet ", i, ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']), "py", ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi'])
-        print "type1 shifts", type1_met_shifts['px'], type1_met_shifts['py'] 
-        print "raw chs met: pt", event.met_chsPt, 'phi', event.met_chsPhi
-        print "type1 chs met: px", chs_MEx_corr, 'py', chs_MEy_corr 
-        print "             : pt",chs_MEt_corr,"phi",chs_MEphi_corr 
-        print 
+#    if sample.isData: #FIXME
+#        print "evt", event.evt
+#        for i, j in enumerate(good_jets):
+#            print "jet", i, "pt(raw)", j['rawPt'], "pt(L1L2L3)", j['pt_corr'], "pt(L1RC)", j['pt_corr_RC'], "phi", cos(j['phi'])
+#            print "cont. to type1 from jet ", i, ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']), "py", ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi'])
+#        print "type1 shifts", type1_met_shifts['px'], type1_met_shifts['py'] 
+#        print "raw chs met: pt", event.met_chsPt, 'phi', event.met_chsPhi
+#        print "type1 chs met: px", chs_MEx_corr, 'py', chs_MEy_corr 
+#        print "             : pt",chs_MEt_corr,"phi",chs_MEphi_corr 
+#        print 
     setattr( event, "met_chsPt_type1",  chs_MEt_corr )
     setattr( event, "met_chsPhi_type1", chs_MEphi_corr )
 
@@ -425,8 +430,8 @@ elif args.mode=="ee":
     data.texName = "data (2 e)"
     index = 1
 
-data = test_data #FIXME 
-data.lumi=1
+#data = test_data #FIXME 
+#data.lumi=1
 
 yields     = {}
 allPlots   = {}
@@ -742,7 +747,7 @@ if not args.skipOtherPlots:
     plots[-1].subdir = "plots"
 
 # pt profile vs dl_pt
-for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
+for abs_eta_bin in all_abs_eta_bins:
   profiles1D.append(Plot(
     name = ( 'ptll_profile_ptll_for_eta_%4.3f_%4.3f'%( abs_eta_bin )).replace('.',''), 
     texX = 'p_{T}(ll) (GeV)', 
@@ -772,7 +777,7 @@ weight = make_weight( abs_eta_bin = (0, 1.3), alpha_passed = "alpha_30_passed" )
 profiles1D[-1].drawObjects = [(0.2, 0.8, abs_eta_string((0, 1.3))), (0.2,0.75, "#alpha<0.3") ]
 
 
-for_comparison_eta = {abs_eta_bin:{alpha:{} for alpha in alphas } for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins}
+for_comparison_eta = {abs_eta_bin:{alpha:{} for alpha in alphas } for abs_eta_bin in all_abs_eta_bins}
 for_comparison_pt  = {ptll_bin:   {alpha:{} for alpha in alphas } for ptll_bin    in ptll_bins}
 
 methods = ['ptbal', 'mpf',  'mpfNoType1']
@@ -785,7 +790,7 @@ for method in methods:
 
   # response profile vs dl_pt
   for alpha in [ "30", "20", "15", "10"]: 
-    for abs_eta_bin in abs_eta_bins + L2res_abs_eta_bins:
+    for abs_eta_bin in all_abs_eta_bins:
       profiles1D.append(Plot(
         name = ('r_%s_%s_a%s_profile_ptll_for_eta_%4.3f_%4.3f'%( ( method, args.version, alpha) + abs_eta_bin )).replace('.',''), 
         texX = 'p_{T}(ll) (GeV)', 
@@ -867,7 +872,7 @@ for method in methods:
               plots[-1].subdir = "response_plots"
 
 
-plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence, max_events = 5000 if args.small else -1) #FIXME
+plotting.fill( plots + profiles1D + plots2D , read_variables = read_variables, sequence = sequence, max_events = 50000 if args.small else -1) #FIXME
 
 # Get normalization yields from yield histogram
 for plot in plots:
