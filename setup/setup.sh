@@ -27,7 +27,7 @@ git push -u origin 80X_JetMET
 
 cd $CMSSW_BASE/src
 git fetch origin
-git checkout -b 80X_JetMET origin/80X_JetMET
+#git checkout -b 80X_JetMET origin/80X_JetMET
 
 #compile
 cd $CMSSW_BASE/src && scram b -j 8 
