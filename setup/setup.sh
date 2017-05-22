@@ -20,6 +20,10 @@ git push -u origin heppy_80X
 # now get the CMGTools subsystem from the cmgtools-lite repository
 git clone -o cmg-central https://github.com/CERN-PH-CMG/cmgtools-lite.git -b 80X CMGTools
 cd CMGTools 
+# only take what we need
+cp $CMSSW_BASE/src/JetMET/setup/cmgtools_sparse-checkout $CMSSW_BASE/src/CMGTools/.git/info/sparse-checkout
+git config core.sparsecheckout True
+git read-tree -mu HEAD
 
 # add your fork, and push the 80X branch to it
 git remote add origin git@github.com:schoef/cmgtools-lite.git 
