@@ -8,5 +8,5 @@ git cms-init
 # Analysis code
 git clone https://github.com/schoef/JetMET
 # CMG + Heppy setup for ntuple production
-./JetMET/setup.sh
+./JetMET/setup/setup.sh
 ```
