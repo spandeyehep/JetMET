@@ -30,32 +30,23 @@ max_events = -1
 max_files = -1
 
 #f_prefix = 'root://eoscms.cern.ch/'
-f_prefix = '~/eos/cms'
+from files import legacy_282035, reminiAOD_282035
 
-legacy_12_21_06_38 = FWLiteSample.fromDAS("legacy_12_21_06_38", "/JetHT/CMSSW_8_0_25-2016_12_21_06_38_PRnewco_80X_dataRun2_2016LegacyRepro_Candidate_v2-v2/RECO", maxN = max_files, prefix = f_prefix)
-legacy_12_21_06_56 = FWLiteSample.fromDAS("legacy_12_21_06_56", "/JetHT/CMSSW_8_0_25-2016_12_21_06_56_PRnewco_80X_dataRun2_2016LegacyRepro_Candidate_v2-v2/RECO", maxN = max_files, prefix = f_prefix)
-legacy_12_21_07_12 = FWLiteSample.fromDAS("legacy_12_21_07_12", "/JetHT/CMSSW_8_0_25-2016_12_21_07_12_PRnewco_80X_dataRun2_2016LegacyRepro_Candidate_v2-v2/RECO", maxN = max_files, prefix = f_prefix)
-legacy_12_21_07_52 = FWLiteSample.fromDAS("legacy_12_21_07_52", "/JetHT/CMSSW_8_0_25-2016_12_21_07_52_PRnewco_80X_dataRun2_2016LegacyRepro_Cand_2016H_v2-v1/RECO", maxN = max_files, prefix =f_prefix)
-ref_12_21_06_38    = FWLiteSample.fromDAS("ref_12_21_06_38", "/JetHT/CMSSW_8_0_25-2016_12_21_06_38_PRref_80X_dataRun2_2016SeptRepro_v5-v2/RECO", maxN = max_files, prefix = f_prefix)
-ref_12_21_06_56    = FWLiteSample.fromDAS("ref_12_21_06_56", "/JetHT/CMSSW_8_0_25-2016_12_21_06_56_PRref_80X_dataRun2_2016SeptRepro_v5-v2/RECO", maxN = max_files, prefix = f_prefix)
-ref_12_21_07_12    = FWLiteSample.fromDAS("ref_12_21_07_12", "/JetHT/CMSSW_8_0_25-2016_12_21_07_12_PRref_80X_dataRun2_2016SeptRepro_v5-v2/RECO", maxN = max_files, prefix = f_prefix)
-ref_12_21_07_52    = FWLiteSample.fromDAS("ref_12_21_07_52", "/JetHT/CMSSW_8_0_25-2016_12_21_07_52_PRref_80X_dataRun2_Prompt_v15-v1/RECO", maxN = max_files,       prefix = f_prefix)
+legacy    = FWLiteSample.fromFiles("legacy",    files = ['root://cms-xrd-global.cern.ch/'+f for f in legacy_282035], maxN = max_files)
+reminiAOD = FWLiteSample.fromFiles("reminiAOD", files = ['root://cms-xrd-global.cern.ch/'+f for f in reminiAOD_282035], maxN = max_files)
 
-preprefix = "relval_legacy_data" 
+preprefix = "legacy_vs_reminiAOD" 
 
 comparisons = \
 [
-    [ "12_21_06_38", legacy_12_21_06_38, ref_12_21_06_38 ],
-    [ "12_21_06_56", legacy_12_21_06_56, ref_12_21_06_56 ],
-    [ "12_21_07_12", legacy_12_21_07_12, ref_12_21_07_12 ],
-    [ "12_21_07_52", legacy_12_21_07_52, ref_12_21_07_52 ],
+    [ "18Apr_vs_03Feb", legacy, reminiAOD ],
 ]
 
 # define TProfiles
 pt_thresholds = [ 10**(x/10.) for x in range(11,36) ] 
 
 eta_thresholds = [0, 1.3, 2.5, 3.2]
-color={0:ROOT.kBlack, 1.3:ROOT.kBlue, 2.5:ROOT.kRed, 3.2:ROOT.kMagenta, "12_21_06_38":ROOT.kBlack, "12_21_06_56":ROOT.kBlue, "12_21_07_12":ROOT.kGreen, "12_21_07_52":ROOT.kMagenta}
+color={0:ROOT.kBlack, 1.3:ROOT.kBlue, 2.5:ROOT.kRed, 3.2:ROOT.kMagenta, "18Apr_vs_03Feb":ROOT.kBlue}
 
 resp = {}
 resp_eta = {}
@@ -72,7 +63,7 @@ for comp in [c[0] for c in comparisons]:
         if eta_th!=eta_thresholds[-1]: resp[comp][eta_th].legendText += "<%2.1f"%eta_thresholds[i_eta_th+1]
 
 products = {
-    'jets':      {'type': 'vector<reco::PFJet>', 'label':"ak4PFJets"},
+    'jets':      {'type': 'vector<pat:Jet>', 'label':"slimmedJets"},
     }
 
 
@@ -127,16 +118,16 @@ for comp, legacy, ref in comparisons:
                         resp[comp][eta_th].Fill( c[0]['pt'], c[0]['pt']/c[1]['pt'] )
                         break
 
-    # Make plot
-    profiles = [resp[comp][t] for t in eta_thresholds]
-    #profiles = [ jetResponse_NJC]
-    prefix=preprefix + "_" + legacy.name + ("_max_events_%s_"%max_events if max_events is not None and max_events>0 else "" )
-    histos = [ [h.ProjectionX()] for h in profiles ]
-    for i, h in enumerate(histos):
-        h[0].__dict__.update(profiles[i].__dict__)
-    
-    jetResponsePlot = Plot.fromHisto(name = prefix+"jetResponseRatio_relval", histos = histos, texX = "new Jet p_{T}" , texY = "response ratio new/old" )
-    plotting.draw(jetResponsePlot, plot_directory = "/afs/hephy.at/user/r/rschoefbeck/www/etc/", ratio = None, logY = False, logX = True, yRange=(0.7,1.2))
+# Make plot
+profiles = [resp[comp][t] for t in eta_thresholds]
+#profiles = [ jetResponse_NJC]
+prefix=preprefix + "_" + legacy.name + ("_max_events_%s_"%max_events if max_events is not None and max_events>0 else "" )
+histos = [ [h.ProjectionX()] for h in profiles ]
+for i, h in enumerate(histos):
+    h[0].__dict__.update(profiles[i].__dict__)
+
+jetResponsePlot = Plot.fromHisto(name = prefix+"jetResponseRatio_relval", histos = histos, texX = "new Jet p_{T}" , texY = "response ratio new/old" )
+plotting.draw(jetResponsePlot, plot_directory = "/afs/hephy.at/user/r/rschoefbeck/www/etc/", ratio = None, logY = False, logX = True, yRange=(0.7,1.2))
 
 # Make eta plot
 profiles = [resp_eta[comp] for comp in [c[0] for c in comparisons] ]
