@@ -1,2 +1,5 @@
+/.gitignore/
 /RootTools/
 /TTHAnalysis/
+/JetEnergyCorrections/
+/Production/
