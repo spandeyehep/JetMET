@@ -27,11 +27,8 @@ git read-tree -mu HEAD
 
 # add your fork, and push the 80X branch to it
 git remote add origin git@github.com:schoef/cmgtools-lite.git 
-git push -u origin 80X_JetMET
-
-cd $CMSSW_BASE/src
 git fetch origin
-#git checkout -b 80X_JetMET origin/80X_JetMET
+git checkout -b 80X_JetMET origin/80X_JetMET
 
 #compile
 cd $CMSSW_BASE/src && scram b -j 8 

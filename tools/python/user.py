@@ -1,6 +1,8 @@
 import os
 
 if os.environ['USER'] in ['schoef', 'rschoefbeck', 'schoefbeck']:
+    # master ntuple
+    master_ntuple_directory = "/data/rschoefbeck/cmgTuples/"
     # Where you store cmg output
     cmg_directory      = "/scratch/rschoefbeck/cmgTuples/80X_1l_9"
     # Where postprocessed data goes 
