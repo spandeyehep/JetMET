@@ -17,6 +17,13 @@ from RootTools.core.standard import *
 # User specific
 import JetMET.tools.user as user
 
+# JetMET
+import JetMET.tools.helpers as helpers
+from JetMET.tools.objectSelection        import getFilterCut, getJets, jetVars
+
+# JEC on the fly, tarball configuration
+from JetMET.JetCorrector.JetCorrector import JetCorrector
+
 #from StopsDilepton.tools.objectSelection import getMuons, getElectrons, muonSelector, eleSelector, getGoodLeptons, getGoodAndOtherLeptons,  getGoodBJets, getGoodJets, isBJet, jetId, isBJet, getGoodPhotons, getGenPartsAll, multiIsoWPInt
 
 # central configuration
@@ -28,100 +35,47 @@ def get_parser():
     import argparse
     argParser = argparse.ArgumentParser(description = "Argument parser for cmgPostProcessing")
 
-    argParser.add_argument('--logLevel',
-        action='store',
-        nargs='?',
-        choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'],
-        default='INFO',
-        help="Log level for logging"
-        )
-
-    argParser.add_argument('--overwrite',
-        action='store_true',
-#        default = True,
-        help="Overwrite existing output files, bool flag set to True  if used")
-
-    argParser.add_argument('--sample',
-        action='store',
-        nargs=1,
-        type=str,
-        default='JetHT_Run2016B',
-        help="List of samples to be processed as defined in L2res_master"
-        )
-
-    argParser.add_argument('--eventsPerJob',
-        action='store',
-        nargs='?',
-        type=int,
-        default=300000,
-        help="Maximum number of events per job (Approximate!)."
-        )
-
-    argParser.add_argument('--nJobs',
-        action='store',
-        nargs='?',
-        type=int,
-        default=1,
-        help="Maximum number of simultaneous jobs."
-        )
-    argParser.add_argument('--job',
-        action='store',
-        nargs='*',
-        type=int,
-        default=[],
-        help="Run only jobs i"
-        )
-
-    argParser.add_argument('--minNJobs',
-        action='store',
-        nargs='?',
-        type=int,
-        default=1,
-        help="Minimum number of simultaneous jobs."
-        )
-
-    argParser.add_argument('--targetDir',
-        action='store',
-        nargs='?',
-        type=str,
-        default=user.data_output_directory,
-        help="Name of the directory the post-processed files will be saved"
-        )
-
-    argParser.add_argument('--processingEra',
-        action='store',
-        nargs='?',
-        type=str,
-        default='V1',
-        help="Name of the processing era"
-        )
-
-    argParser.add_argument('--skim',
-        action='store',
-        nargs='?',
-        type=str,
-        default='default',
-        help="Skim conditions to be applied for post-processing"
-        )
-
-    argParser.add_argument('--small',
-        action='store_true',
-#        default=True,
-        help="Run the file on a small sample (for test purpose), bool flag set to True if used",
-        #default = True
-        )
-
+    argParser.add_argument('--logLevel', action='store', nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], default='INFO', help="Log level for logging")
+    argParser.add_argument('--overwrite', action='store_true', help="Overwrite existing output files, bool flag set to True  if used", default=True) 
+    argParser.add_argument('--sample', action='store', nargs=1, type=str, default='QCD_Pt_600to800', help="List of samples to be processed as defined in L2res_master" )
+    argParser.add_argument('--eventsPerJob', action='store', nargs='?', type=int, default=300000, help="Maximum number of events per job (Approximate!)." )
+    argParser.add_argument('--nJobs', action='store', nargs='?', type=int, default=1, help="Maximum number of simultaneous jobs." )    
+    argParser.add_argument('--job', action='store', nargs='*', type=int, default=[], help="Run only jobs i" )
+    argParser.add_argument('--minNJobs', action='store', nargs='?', type=int, default=1, help="Minimum number of simultaneous jobs." )
+    argParser.add_argument('--targetDir', action='store', nargs='?', type=str, default='.', help="Name of the directory the post-processed files will be saved" ) #user.data_output_directory
+    #argParser.add_argument('--version', action='store', nargs='?', type=str, default='V1', help="JEC version" )
+    argParser.add_argument('--processingEra', action='store', nargs='?', type=str, default='v1', help="Name of the processing era" )
+    argParser.add_argument('--skim', action='store', nargs='?', type=str, default='default', help="Skim conditions to be applied for post-processing" )
+    argParser.add_argument('--small', action='store_true', help="Run the file on a small sample (for test purpose), bool flag set to True if used", default = True)
     return argParser
 
 options = get_parser().parse_args()
 
 # Logging
 import JetMET.tools.logger as logger
-logFile = '/tmp/%s_%s_%s_njob%s.txt'%(options.skim, '_'.join(options.samples), os.environ['USER'], str(0 if options.nJobs==1 else options.job[0]))
+logFile = '/tmp/%s_%s_%s_njob%s.txt'%(options.skim, options.sample, os.environ['USER'], str(0 if options.nJobs==1 else options.job[0]))
 logger  = logger.get_logger(options.logLevel, logFile = logFile)
 
 import RootTools.core.logger as logger_rt
 logger_rt = logger_rt.get_logger(options.logLevel, logFile = None )
+
+# JetCorrector config
+Summer16_03Feb2017_DATA = \
+[(1,      'Summer16_03Feb2017BCD_V2_DATA'),
+ (276831, 'Summer16_03Feb2017EF_V2_DATA' ),
+ (278802, 'Summer16_03Feb2017G_V2_DATA' ),
+ (280919, 'Summer16_03Feb2017H_V2_DATA')]
+
+Summer16_03Feb2017_MC = [(1, 'Summer16_03Feb2017_V1_MC') ]
+
+correction_levels_data  = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ] # No residuals! 
+correction_levels_mc    = [ 'L1FastJet', 'L2Relative', 'L3Absolute' ]
+
+jetCorrector_data    = JetCorrector.fromTarBalls( Summer16_03Feb2017_DATA, correctionLevels = correction_levels_data )
+jetCorrector_mc      = JetCorrector.fromTarBalls( Summer16_03Feb2017_MC,   correctionLevels = correction_levels_mc )
+
+jetCorrector_RC_data = JetCorrector.fromTarBalls( Summer16_03Feb2017_DATA, correctionLevels = [ 'L1RC'] )
+jetCorrector_RC_mc   = JetCorrector.fromTarBalls( Summer16_03Feb2017_MC,   correctionLevels = [ 'L1RC'] )
 
 # Flags 
 defSkim = options.skim.lower().startswith('default')
@@ -129,43 +83,24 @@ defSkim = options.skim.lower().startswith('default')
 # Skim condition
 skimConds = []
 if defSkim:
-    skimConds.append( "0.5*(Jet_pt[0]+Jet_pt[1])>50" )
+    skimConds.append( "nJet>=2&&0.5*(Jet_pt[0]+Jet_pt[1])>50" )
 
 #Samples: Load samples
 maxN = 1 if options.small else None
 from JetMET.JEC.samples.L2res_master import L2res_master
-sample = Sample.combine( options.sample, samples = [ Sample.fromCMGOutput("%i"%i_sample, data_path = path, maxN = maxN) for i_sample, path in enumerate( L2res_master[options.sample] ) ] )
+sample = Sample.combine( options.sample, samples = [ Sample.fromCMGOutput("%i"%i_sample, baseDirectory = path, maxN = maxN) for i_sample, path in enumerate( L2res_master[options.sample] ) ] )
 logger.debug("Reading from CMG tuple %s which are %i files.", options.sample, len(sample.files) )
     
 isData = 'Run2016' in sample.name 
 isMC   =  not isData 
 
-#if isMC:
-#    from StopsDilepton.tools.puReweighting import getReweightingFunction
-#    mcProfile = "Summer16"
-#    # nTrueIntReweighting
-#    nTrueInt36fb_puRW        = getReweightingFunction(data="PU_2016_36000_XSecCentral", mc=mcProfile)
-#    nTrueInt36fb_puRWDown    = getReweightingFunction(data="PU_2016_36000_XSecDown",    mc=mcProfile)
-#    nTrueInt36fb_puRWUp      = getReweightingFunction(data="PU_2016_36000_XSecUp",      mc=mcProfile)
+if isMC:
+    from JetMET.tools.puReweighting import getReweightingFunction
+    puRW        = getReweightingFunction(data="PU_Run2016_36000_XSecCentral", mc='Summer16')
+    puRWDown    = getReweightingFunction(data="PU_Run2016_36000_XSecDown",    mc='Summer16')
+    puRWUp      = getReweightingFunction(data="PU_Run2016_36000_XSecUp",      mc='Summer16')
         
-
-
-## systematic variations
-#addSystematicVariations = (not isData) and (not options.skipSystematicVariations)
-#if addSystematicVariations:
-#    # B tagging SF
-#    from StopsDilepton.tools.btagEfficiency import btagEfficiency
-#    btagEff = btagEfficiency( fastSim = False )
-
-## LHE cut (DY samples)
-#if options.LHEHTCut>0:
-#    sample.name+="_lheHT"+str(options.LHEHTCut)
-#    logger.info( "Adding upper LHE cut at %f", options.LHEHTCut )
-#    skimConds.append( "lheHTIncoming<%f"%options.LHEHTCut )
-
-directory  = os.path.join(options.targetDir, options.processingEra) 
-
-output_directory = os.path.join( directory, options.skim, sample.name )
+output_directory = os.path.join( options.targetDir, options.processingEra, options.skim, sample.name )
 
 if os.path.exists(output_directory) and options.overwrite:
     if options.nJobs > 1:
@@ -183,30 +118,26 @@ except:
 #branches to be kept for data and MC
 branchKeepStrings_DATAMC = [\
     "run", "lumi", "evt", "isData", "rho", "nVert",
-    "met_pt", "met_phi","met_Jet*", "met_Unclustered*", "met_sumEt", "met_rawPt","met_rawPhi", "met_rawSumEt", "met_caloPt", "met_caloPhi",
+    "met_chsPt", "met_chsPhi",
 #        "metNoHF_pt", "metNoHF_phi",
 #        "puppiMet_pt","puppiMet_phi","puppiMet_sumEt","puppiMet_rawPt","puppiMet_rawPhi","puppiMet_rawSumEt",
     "Flag_*","HLT_*",
 #        "nDiscJet", "DiscJet_*",
 #        "nJetFailId", "JetFailId_*",
-    "nLepGood", "LepGood_*",
-    "nLepOther", "LepOther_*",
-#        "nTauGood", "TauGood_*",
+#    "nLepGood", "LepGood_*",
+#    "nLepOther", "LepOther_*",
+    "Jet_*",
 ]
+#branches to be kept for data samples only
+branchKeepStrings_DATA = []
 #branches to be kept for MC samples only
 branchKeepStrings_MC = [\
-    "nTrueInt", "genWeight", "xsec", "met_gen*", "lheHTIncoming",
+    "nTrueInt", "genWeight", "xsec",  "lheHTIncoming",
 #        "ngenPartAll","genPartAll_*","ngenLep","genLep_*"
 ]
 
-
 if isMC:
-    if isTiny or isSmall:
-        jetMCInfo = ['mcPt/F', 'hadronFlavour/I','mcMatchId/I']
-    else:
-        jetMCInfo = ['mcMatchFlav/I', 'partonId/I', 'partonMotherId/I', 'mcPt/F', 'mcFlavour/I', 'hadronFlavour/I', 'mcMatchId/I']
-        if not (options.susySignal):
-            jetMCInfo.append('partonFlavour/I')
+    jetMCInfo = ['mcMatchFlav/I', 'partonId/I', 'partonMotherId/I', 'mcPt/F', 'mcFlavour/I', 'hadronFlavour/I', 'mcMatchId/I', 'partonFlavour/I']
 else:
     jetMCInfo = []
 
@@ -222,24 +153,26 @@ else:
     lumiScaleFactor = targetLumi/float(sample.normalization) 
     branchKeepStrings = branchKeepStrings_DATAMC + branchKeepStrings_MC
 
-jetVars = ['pt/F', 'rawPt/F', 'eta/F', 'phi/F', 'id/I', 'btagCSV/F', 'area/F'] + jetCorrInfo + jetMCInfo
+skimConds.append( getFilterCut( isData = False, badMuonFilters = "Moriond2017" ) ) # always apply MC version. Data version has 'weight>0' which isnot for master ntuples
+
+jetVars = ['pt/F', 'rawPt/F', 'eta/F', 'phi/F', 'id/I', 'btagCSV/F', 'area/F'] + jetMCInfo
 jetVarNames = [x.split('/')[0] for x in jetVars]
 
-read_variables = map(TreeVariable.fromString, ['met_pt/F', 'met_phi/F', 'run/I', 'lumi/I', 'evt/l', 'nVert/I'] )
-
-new_variables = [ 'weight/F']
-if isMC:
-    read_variables+= [TreeVariable.fromString('nTrueInt/F')]
-
+read_variables = map(TreeVariable.fromString, ['met_pt/F', 'met_phi/F', 'run/I', 'lumi/I', 'evt/l', 'nVert/I', 'rho/F', 'met_chsPt/F', 'met_chsPhi/F'] )
 read_variables += [\
 #    TreeVariable.fromString('nLepGood/I'),
 #    VectorTreeVariable.fromString('LepGood[pt/F,eta/F,etaSc/F,phi/F,pdgId/I,tightId/I,miniRelIso/F,relIso03/F,sip3d/F,mediumMuonId/I,mvaIdSpring15/F,lostHits/I,convVeto/I,dxy/F,dz/F,jetPtRelv2/F,jetPtRatiov2/F,eleCutId_Spring2016_25ns_v1_ConvVetoDxyDz/I]'),
-#    TreeVariable.fromString('nJet/I'),
-#    VectorTreeVariable.fromString('Jet[%s]'% ( ','.join(jetVars) ) )
+    TreeVariable.fromString('nJet/I'),
+    VectorTreeVariable.fromString('Jet[%s]'% ( ','.join(jetVars) ) )
 ]
 
+
+new_variables = [ 'weight/F']
+if isMC:
+    read_variables+= map( TreeVariable.fromString, [ 'nTrueInt/F', 'xsec/F', 'genWeight/F'] )
+
 new_variables += [\
-    'JetGood[%s]'% ( ','.join(jetVars) )
+#    'JetGood[%s]'% ( ','.join(jetVars) )
 ]
 
 if isData: new_variables.extend( ['jsonPassed/I'] )
@@ -253,9 +186,10 @@ reader = sample.treeReader( \
 def filler( event ):
     # shortcut
     r = reader.event
-    elif isMC:
-        event.weight = lumiScaleFactor*r.genWeight if lumiScaleFactor is not None else 1
-
+    if isMC:
+        event.weight = r.xsec*lumiScaleFactor*r.genWeight if lumiScaleFactor is not None else 1
+    else:
+        event.weight = 1
     # lumi lists and vetos
     if isData:
         #event.vetoPassed  = vetoList.passesVeto(r.run, r.lumi, r.evt)
@@ -263,10 +197,55 @@ def filler( event ):
         # store decision to use after filler has been executed
         event.jsonPassed_ = event.jsonPassed
 
+    # PU weight
     if isMC:
-        event.reweightPU     = nTrueInt_puRW       ( r.nTrueInt ) 
-        event.reweightPUDown = nTrueInt_puRWDown   ( r.nTrueInt ) 
-        event.reweightPUUp   = nTrueInt_puRWUp     ( r.nTrueInt ) 
+        event.reweightPU     = puRW       ( r.nTrueInt ) 
+        event.reweightPUDown = puRWDown   ( r.nTrueInt ) 
+        event.reweightPUUp   = puRWUp     ( r.nTrueInt ) 
+
+    jets = getJets( r, jetColl="Jet", jetVars = jetVarNames)
+
+    for j in jets:
+        # 'Corr' correction level: L1L2L3 L2res
+        if sample.isData:
+            jet_corr_factor    =  jetCorrector_data.   correction( j['rawPt'], j['eta'], j['area'], r.rho, r.run )
+            jet_corr_factor_RC =  jetCorrector_RC_data.correction( j['rawPt'], j['eta'], j['area'], r.rho, r.run )
+        else:
+            jet_corr_factor    =  jetCorrector_mc.     correction( j['rawPt'], j['eta'], j['area'], r.rho, r.run )  
+            jet_corr_factor_RC =  jetCorrector_RC_mc.  correction( j['rawPt'], j['eta'], j['area'], r.rho, r.run )  
+        
+        # corrected jet
+        j['pt_corr']    =  jet_corr_factor * j['rawPt'] 
+
+        # L1RC 
+        j['pt_corr_RC'] =  jet_corr_factor_RC * j['rawPt'] 
+
+    good_jets = filter( lambda j:j['pt_corr'] > 15, jets)
+
+    # compute type-1 MET shifts for chs met L1L2L3 - L1RC (if 'noL1', then L1FastJets is divided out and L1RC is not applied )
+    type1_met_shifts = \
+                {'px' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']) for j in good_jets), 
+                 'py' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi']) for j in good_jets) } 
+
+    # leading jet
+    event.leading_jet    = good_jets[0]
+    # subleading jet
+    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else null_jet
+
+    # alpha 
+    #event.alpha = event.subleading_jet['pt_corr'] / event.dl_pt
+    # alpha cut flag
+    #event.alpha_30_passed = ( event.alpha < 0.3)
+    #event.alpha_20_passed = ( event.alpha < 0.2)
+    #event.alpha_15_passed = ( event.alpha < 0.15)
+    #event.alpha_10_passed = ( event.alpha < 0.1)
+
+    # chs MET 
+    chs_MEx_corr = r.met_chsPt*cos(r.met_chsPhi) + type1_met_shifts['px']
+    chs_MEy_corr = r.met_chsPt*sin(r.met_chsPhi) + type1_met_shifts['py']
+
+    chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
+    chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
 
 # Create a maker. Maker class will be compiled. This instance will be used as a parent in the loop
 treeMaker_parent = TreeMaker(
@@ -301,7 +280,7 @@ for ievtRange, eventRange in enumerate( eventRanges ):
     outfilename = filename+'_'+str(ievtRange)+ext
     if os.path.isfile(outfilename):
         logger.info( "Output file %s found.", outfilename)
-        if not checkRootFile(outfilename, checkForObjects=["Events"]):
+        if not helpers.checkRootFile(outfilename, checkForObjects=["Events"]):
             logger.info( "File %s is broken. Overwriting.", outfilename)
         elif not options.overwrite:
             logger.info( "Skipping.")

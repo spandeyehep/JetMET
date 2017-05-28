@@ -1,6 +1,26 @@
-from StopsDilepton.tools.helpers import mZ, getVarValue, getObjDict
 from math import *
 import numbers
+
+mZ=91.1876
+
+def getVarValue(c, var, n=-1):
+    try:
+        att = getattr(c, var)
+    except AttributeError:
+        return float('nan')
+    if n>=0:
+#    print "getVarValue %s %i"%(var,n)
+        if n<att.__len__():
+            return att[n]
+        else:
+            return float('nan')
+    return att
+
+def getObjDict(c, prefix, variables, i):
+    res={var: getVarValue(c, prefix+var, i) for var in variables}
+    res['index']=i
+    return res
+
 
 jetVars = ['eta','pt','phi','btagCSV','id','area','rawPt']
 
@@ -308,6 +328,8 @@ def getFilterCut(isData=False, isFastSim = False, badMuonFilters = "Summer2016")
             filterCut += "&&Flag_badChargedHadronSummer2016&&Flag_badMuonSummer2016"
         elif badMuonFilters == "Summer2016_pt20":
             filterCut += "&&Flag_badChargedHadronSummer2016&&Flag_badMuonSummer2016_pt20"
+        elif badMuonFilters == "Moriond2017":
+            filterCut += "&&Flag_badMuonMoriond2017&&Flag_badCloneMuonMoriond2017"
         elif badMuonFilters is None or badMuonFilters == "None":
             pass
     if isData: filterCut += "&&weight>0"
