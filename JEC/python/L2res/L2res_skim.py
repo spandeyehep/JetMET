@@ -7,6 +7,7 @@ import os
 import copy
 import subprocess
 import shutil
+import random
 
 from operator import mul
 from math import sqrt, atan2, sin, cos
@@ -36,17 +37,17 @@ def get_parser():
     argParser = argparse.ArgumentParser(description = "Argument parser for cmgPostProcessing")
 
     argParser.add_argument('--logLevel', action='store', nargs='?', choices=['CRITICAL', 'ERROR', 'WARNING', 'INFO', 'DEBUG', 'TRACE', 'NOTSET'], default='INFO', help="Log level for logging")
-    argParser.add_argument('--overwrite', action='store_true', help="Overwrite existing output files, bool flag set to True  if used", default=True) 
-    argParser.add_argument('--sample', action='store', nargs=1, type=str, default='QCD_Pt_600to800', help="List of samples to be processed as defined in L2res_master" )
+    argParser.add_argument('--overwrite', action='store_true', help="Overwrite existing output files, bool flag set to True  if used", default=False) 
+    argParser.add_argument('--sample', action='store', type=str, default='QCD_Pt_600to800', help="List of samples to be processed as defined in L2res_master" )
     argParser.add_argument('--eventsPerJob', action='store', nargs='?', type=int, default=300000, help="Maximum number of events per job (Approximate!)." )
     argParser.add_argument('--nJobs', action='store', nargs='?', type=int, default=1, help="Maximum number of simultaneous jobs." )    
     argParser.add_argument('--job', action='store', nargs='*', type=int, default=[], help="Run only jobs i" )
     argParser.add_argument('--minNJobs', action='store', nargs='?', type=int, default=1, help="Minimum number of simultaneous jobs." )
-    argParser.add_argument('--targetDir', action='store', nargs='?', type=str, default='.', help="Name of the directory the post-processed files will be saved" ) #user.data_output_directory
+    argParser.add_argument('--targetDir', action='store', nargs='?', type=str, default=user.data_output_directory, help="Name of the directory the post-processed files will be saved" ) #user.data_output_directory
     #argParser.add_argument('--version', action='store', nargs='?', type=str, default='V1', help="JEC version" )
     argParser.add_argument('--processingEra', action='store', nargs='?', type=str, default='v1', help="Name of the processing era" )
     argParser.add_argument('--skim', action='store', nargs='?', type=str, default='default', help="Skim conditions to be applied for post-processing" )
-    argParser.add_argument('--small', action='store_true', help="Run the file on a small sample (for test purpose), bool flag set to True if used", default = True)
+    argParser.add_argument('--small', action='store_true', help="Run the file on a small sample (for test purpose), bool flag set to True if used", default = False)
     return argParser
 
 options = get_parser().parse_args()
@@ -172,16 +173,23 @@ if isMC:
     read_variables+= map( TreeVariable.fromString, [ 'nTrueInt/F', 'xsec/F', 'genWeight/F'] )
 
 new_variables += [\
-#    'JetGood[%s]'% ( ','.join(jetVars) )
+    "r_mpf/F", "asymmetry/F", "pt_avg/F", "chs_MEx_corr/F", "chs_MEy_corr/F", "chs_MEt_corr/F", "chs_MEphi_corr/F", "alpha/F", "tag_jet_index/I", "probe_jet_index/I", "third_jet_index/I"
 ]
 
 if isData: new_variables.extend( ['jsonPassed/I'] )
+
 
 # Define a reader
 reader = sample.treeReader( \
     variables = read_variables ,
     selectionString = "&&".join(skimConds)
     )
+
+null_jet = {key:float('nan') for key in jetVars}
+null_jet['pt']         = 0
+null_jet['pt_corr']    = 0
+null_jet['pt_corr_RC'] = 0
+null_jet['index'] = -1
 
 def filler( event ):
     # shortcut
@@ -220,6 +228,27 @@ def filler( event ):
         # L1RC 
         j['pt_corr_RC'] =  jet_corr_factor_RC * j['rawPt'] 
 
+    tag_jet, probe_jet = jets[:2]
+
+    # randomize if both are in barrel:
+    if abs(tag_jet['eta'])<1.3 and abs(probe_jet['eta'])<1.3:
+        if random.random()>0.5:
+            tag_jet, probe_jet = probe_jet, tag_jet
+    # tag jet in barrel
+    if abs(tag_jet['eta'])>1.3 and abs(probe_jet['eta'])<1.3:
+        tag_jet, probe_jet = probe_jet, tag_jet
+
+    third_jet = jets[2] if len(jets)>=3 else null_jet    
+
+    event.tag_jet_index     = tag_jet['index']
+    event.probe_jet_index   = probe_jet['index']
+    event.third_jet_index   = third_jet['index']
+
+    event.pt_avg      = 0.5*( tag_jet['pt'] + probe_jet['pt'] )
+    event.alpha       = third_jet['pt']/event.pt_avg
+    event.asymmetry   = (probe_jet['pt'] - tag_jet['pt']) / (probe_jet['pt'] + tag_jet['pt'])
+
+    # MET corrections
     good_jets = filter( lambda j:j['pt_corr'] > 15, jets)
 
     # compute type-1 MET shifts for chs met L1L2L3 - L1RC (if 'noL1', then L1FastJets is divided out and L1RC is not applied )
@@ -227,25 +256,15 @@ def filler( event ):
                 {'px' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*cos(j['phi']) for j in good_jets), 
                  'py' :sum( ( j['pt_corr_RC'] - j['pt_corr'] )*sin(j['phi']) for j in good_jets) } 
 
-    # leading jet
-    event.leading_jet    = good_jets[0]
-    # subleading jet
-    event.subleading_jet = good_jets[1] if len(good_jets)>=2 else null_jet
-
-    # alpha 
-    #event.alpha = event.subleading_jet['pt_corr'] / event.dl_pt
-    # alpha cut flag
-    #event.alpha_30_passed = ( event.alpha < 0.3)
-    #event.alpha_20_passed = ( event.alpha < 0.2)
-    #event.alpha_15_passed = ( event.alpha < 0.15)
-    #event.alpha_10_passed = ( event.alpha < 0.1)
-
     # chs MET 
-    chs_MEx_corr = r.met_chsPt*cos(r.met_chsPhi) + type1_met_shifts['px']
-    chs_MEy_corr = r.met_chsPt*sin(r.met_chsPhi) + type1_met_shifts['py']
+    event.chs_MEx_corr = r.met_chsPt*cos(r.met_chsPhi) + type1_met_shifts['px']
+    event.chs_MEy_corr = r.met_chsPt*sin(r.met_chsPhi) + type1_met_shifts['py']
 
-    chs_MEt_corr    = sqrt(  chs_MEx_corr**2 + chs_MEy_corr**2 )
-    chs_MEphi_corr  = atan2( chs_MEy_corr, chs_MEx_corr )
+    event.chs_MEt_corr    = sqrt(  event.chs_MEx_corr**2 + event.chs_MEy_corr**2 )
+    event.chs_MEphi_corr  = atan2( event.chs_MEy_corr, event.chs_MEx_corr )
+
+    # R(MPF)
+    event.r_mpf = 1 + ( event.chs_MEx_corr*tag_jet['pt']*cos(tag_jet['phi'])  + event.chs_MEy_corr*tag_jet['pt']*sin(tag_jet['phi']) ) / tag_jet['pt']**2
 
 # Create a maker. Maker class will be compiled. This instance will be used as a parent in the loop
 treeMaker_parent = TreeMaker(
