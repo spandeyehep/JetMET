@@ -1,12 +1,12 @@
 # JetMET/JERC analysis code and CMG setup in 80X
 
 ```
-cmsrel CMSSW_8_0_26_patch1
-cd CMSSW_8_0_26_patch1/src
+cmsrel CMSSW_9_0_2
+cd CMSSW_9_0_2/src
 cmsenv
-git cms-init
-# Analysis code
-git clone https://github.com/schoef/JetMET
-# CMG + Heppy setup for ntuple production
-./JetMET/setup/setup.sh
+git clone -b PF_jets_comp git@github.com:spandeyehep/JetMET.git
+git clone https://github.com/schoef/RootTools.git
+<edit output directory https://github.com/spandeyehep/JetMET/blob/PF_jets_comp/tools/python/user.py#L11-L13>
+scram b
+cmsRun JetMET/response/python/jetResponse_PFHadronCalibration/jetResponse_PFHadronCalibration.py
 ```
